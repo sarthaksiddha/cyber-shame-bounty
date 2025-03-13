@@ -1,6 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { MapPin, AlertTriangle, TrendingUp, Check } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 
 interface CrimeData {
   state: string;
@@ -8,37 +9,38 @@ interface CrimeData {
   resolved: number;
   trend: 'up' | 'down' | 'stable';
   topType: string;
+  coordinates?: [number, number]; // [longitude, latitude]
 }
 
 const stateData: CrimeData[] = [
-  { state: 'Maharashtra', incidents: 5429, resolved: 2817, trend: 'up', topType: 'Financial Fraud' },
-  { state: 'Delhi', incidents: 4231, resolved: 1782, trend: 'up', topType: 'Social Media Scams' },
-  { state: 'Karnataka', incidents: 3756, resolved: 2103, trend: 'up', topType: 'Ransomware' },
-  { state: 'Tamil Nadu', incidents: 2901, resolved: 1450, trend: 'stable', topType: 'Banking Fraud' },
-  { state: 'Telangana', incidents: 2698, resolved: 1349, trend: 'up', topType: 'Phishing' },
-  { state: 'Gujarat', incidents: 2541, resolved: 1524, trend: 'stable', topType: 'OTP Fraud' },
-  { state: 'Uttar Pradesh', incidents: 2301, resolved: 920, trend: 'up', topType: 'UPI Scams' },
-  { state: 'Rajasthan', incidents: 1876, resolved: 750, trend: 'stable', topType: 'OTP Fraud' },
-  { state: 'West Bengal', incidents: 1754, resolved: 842, trend: 'down', topType: 'Banking Fraud' },
-  { state: 'Kerala', incidents: 1624, resolved: 973, trend: 'down', topType: 'Job Scams' },
-  { state: 'Punjab', incidents: 1320, resolved: 726, trend: 'stable', topType: 'Social Media Scams' },
-  { state: 'Haryana', incidents: 1289, resolved: 644, trend: 'up', topType: 'Financial Fraud' },
-  { state: 'Bihar', incidents: 1203, resolved: 482, trend: 'up', topType: 'UPI Scams' },
-  { state: 'Madhya Pradesh', incidents: 1187, resolved: 593, trend: 'stable', topType: 'OTP Fraud' },
-  { state: 'Andhra Pradesh', incidents: 1089, resolved: 598, trend: 'down', topType: 'Banking Fraud' },
-  { state: 'Odisha', incidents: 890, resolved: 401, trend: 'stable', topType: 'Financial Fraud' },
-  { state: 'Assam', incidents: 768, resolved: 307, trend: 'up', topType: 'UPI Scams' },
-  { state: 'Jharkhand', incidents: 682, resolved: 341, trend: 'stable', topType: 'Phishing' },
-  { state: 'Uttarakhand', incidents: 578, resolved: 289, trend: 'stable', topType: 'Job Scams' },
-  { state: 'Himachal Pradesh', incidents: 423, resolved: 254, trend: 'down', topType: 'OTP Fraud' },
-  { state: 'Goa', incidents: 321, resolved: 192, trend: 'down', topType: 'Social Media Scams' },
-  { state: 'Tripura', incidents: 289, resolved: 144, trend: 'stable', topType: 'UPI Scams' },
-  { state: 'Manipur', incidents: 192, resolved: 96, trend: 'stable', topType: 'Phishing' },
-  { state: 'Meghalaya', incidents: 167, resolved: 83, trend: 'stable', topType: 'Financial Fraud' },
-  { state: 'Nagaland', incidents: 143, resolved: 71, trend: 'stable', topType: 'Job Scams' },
-  { state: 'Arunachal Pradesh', incidents: 128, resolved: 64, trend: 'stable', topType: 'UPI Scams' },
-  { state: 'Mizoram', incidents: 112, resolved: 56, trend: 'down', topType: 'Banking Fraud' },
-  { state: 'Sikkim', incidents: 98, resolved: 59, trend: 'down', topType: 'Financial Fraud' },
+  { state: 'Maharashtra', incidents: 5429, resolved: 2817, trend: 'up', topType: 'Financial Fraud', coordinates: [73.8567, 18.5204] },
+  { state: 'Delhi', incidents: 4231, resolved: 1782, trend: 'up', topType: 'Social Media Scams', coordinates: [77.1025, 28.7041] },
+  { state: 'Karnataka', incidents: 3756, resolved: 2103, trend: 'up', topType: 'Ransomware', coordinates: [75.7139, 15.3173] },
+  { state: 'Tamil Nadu', incidents: 2901, resolved: 1450, trend: 'stable', topType: 'Banking Fraud', coordinates: [78.6569, 11.1271] },
+  { state: 'Telangana', incidents: 2698, resolved: 1349, trend: 'up', topType: 'Phishing', coordinates: [79.0193, 17.1131] },
+  { state: 'Gujarat', incidents: 2541, resolved: 1524, trend: 'stable', topType: 'OTP Fraud', coordinates: [71.1924, 22.2587] },
+  { state: 'Uttar Pradesh', incidents: 2301, resolved: 920, trend: 'up', topType: 'UPI Scams', coordinates: [80.9462, 26.8467] },
+  { state: 'Rajasthan', incidents: 1876, resolved: 750, trend: 'stable', topType: 'OTP Fraud', coordinates: [73.8278, 26.9124] },
+  { state: 'West Bengal', incidents: 1754, resolved: 842, trend: 'down', topType: 'Banking Fraud', coordinates: [87.8550, 22.9868] },
+  { state: 'Kerala', incidents: 1624, resolved: 973, trend: 'down', topType: 'Job Scams', coordinates: [76.2711, 10.8505] },
+  { state: 'Punjab', incidents: 1320, resolved: 726, trend: 'stable', topType: 'Social Media Scams', coordinates: [75.3412, 31.1471] },
+  { state: 'Haryana', incidents: 1289, resolved: 644, trend: 'up', topType: 'Financial Fraud', coordinates: [76.0856, 29.0588] },
+  { state: 'Bihar', incidents: 1203, resolved: 482, trend: 'up', topType: 'UPI Scams', coordinates: [85.3131, 25.0961] },
+  { state: 'Madhya Pradesh', incidents: 1187, resolved: 593, trend: 'stable', topType: 'OTP Fraud', coordinates: [78.6569, 22.9734] },
+  { state: 'Andhra Pradesh', incidents: 1089, resolved: 598, trend: 'down', topType: 'Banking Fraud', coordinates: [78.7047, 14.7504] },
+  { state: 'Odisha', incidents: 890, resolved: 401, trend: 'stable', topType: 'Financial Fraud', coordinates: [85.0985, 20.9517] },
+  { state: 'Assam', incidents: 768, resolved: 307, trend: 'up', topType: 'UPI Scams', coordinates: [92.9376, 26.2006] },
+  { state: 'Jharkhand', incidents: 682, resolved: 341, trend: 'stable', topType: 'Phishing', coordinates: [85.3096, 23.6102] },
+  { state: 'Uttarakhand', incidents: 578, resolved: 289, trend: 'stable', topType: 'Job Scams', coordinates: [79.0193, 30.0668] },
+  { state: 'Himachal Pradesh', incidents: 423, resolved: 254, trend: 'down', topType: 'OTP Fraud', coordinates: [77.1734, 31.1048] },
+  { state: 'Goa', incidents: 321, resolved: 192, trend: 'down', topType: 'Social Media Scams', coordinates: [74.1240, 15.2993] },
+  { state: 'Tripura', incidents: 289, resolved: 144, trend: 'stable', topType: 'UPI Scams', coordinates: [91.9882, 23.9408] },
+  { state: 'Manipur', incidents: 192, resolved: 96, trend: 'stable', topType: 'Phishing', coordinates: [93.9063, 24.6637] },
+  { state: 'Meghalaya', incidents: 167, resolved: 83, trend: 'stable', topType: 'Financial Fraud', coordinates: [91.3662, 25.4670] },
+  { state: 'Nagaland', incidents: 143, resolved: 71, trend: 'stable', topType: 'Job Scams', coordinates: [94.5624, 26.1584] },
+  { state: 'Arunachal Pradesh', incidents: 128, resolved: 64, trend: 'stable', topType: 'UPI Scams', coordinates: [94.7278, 28.2180] },
+  { state: 'Mizoram', incidents: 112, resolved: 56, trend: 'down', topType: 'Banking Fraud', coordinates: [92.9376, 23.1645] },
+  { state: 'Sikkim', incidents: 98, resolved: 59, trend: 'down', topType: 'Financial Fraud', coordinates: [88.5122, 27.5330] },
 ];
 
 const formatNumber = (num: number): string => {
@@ -47,14 +49,17 @@ const formatNumber = (num: number): string => {
 
 const ActivityMap = () => {
   const mapRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedState, setSelectedState] = useState<CrimeData | null>(null);
   const [sortBy, setSortBy] = useState<'incidents' | 'resolved'>('incidents');
   const [mapVisible, setMapVisible] = useState(false);
+  const [mapView, setMapView] = useState<'heatmap' | 'bubble'>('heatmap');
 
   // Sort data based on current sort criteria
   const sortedStateData = [...stateData].sort((a, b) => b[sortBy] - a[sortBy]);
 
   useEffect(() => {
+    // Observer for animation when section comes into view
     const observerOptions = {
       threshold: 0.1
     };
@@ -79,29 +84,128 @@ const ActivityMap = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!mapVisible || !canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas dimensions
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw India map outline (simplified)
+    ctx.beginPath();
+    // This is a very simplified path for India's outline
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Map coordinates to canvas
+    const mapCoordinatesToCanvas = (lon: number, lat: number) => {
+      // These are approximate mappings for India
+      const minLon = 68;
+      const maxLon = 97;
+      const minLat = 8;
+      const maxLat = 37;
+
+      const x = ((lon - minLon) / (maxLon - minLon)) * canvas.width;
+      const y = canvas.height - ((lat - minLat) / (maxLat - minLat)) * canvas.height;
+      
+      return { x, y };
+    };
+
+    if (mapView === 'heatmap') {
+      // Draw heatmap
+      stateData.forEach(state => {
+        if (!state.coordinates) return;
+        
+        const { x, y } = mapCoordinatesToCanvas(state.coordinates[0], state.coordinates[1]);
+        
+        // Create radial gradient based on incident count
+        const radius = Math.sqrt(state.incidents) / 15;
+        const grd = ctx.createRadialGradient(x, y, 0, x, y, radius * 30);
+        
+        // Set gradient colors based on incident count
+        const intensity = Math.min(state.incidents / 5000, 1);
+        grd.addColorStop(0, `rgba(255, 0, 0, ${intensity * 0.7})`);
+        grd.addColorStop(1, 'rgba(255, 0, 0, 0)');
+        
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 30, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    } else if (mapView === 'bubble') {
+      // Draw bubbles
+      stateData.forEach(state => {
+        if (!state.coordinates) return;
+        
+        const { x, y } = mapCoordinatesToCanvas(state.coordinates[0], state.coordinates[1]);
+        const radius = Math.sqrt(state.incidents) / 10;
+        
+        // Resolution rate affects bubble color
+        const resolutionRate = state.resolved / state.incidents;
+        const r = Math.floor(255 * (1 - resolutionRate));
+        const g = Math.floor(255 * resolutionRate);
+        const b = 100;
+        
+        // Draw bubble
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.7)`;
+        ctx.fill();
+        
+        // Draw state name for larger bubbles
+        if (radius > 5) {
+          ctx.fillStyle = '#fff';
+          ctx.font = '10px JetBrains Mono';
+          ctx.textAlign = 'center';
+          ctx.fillText(state.state, x, y + radius + 12);
+        }
+        
+        // Highlight selected state
+        if (selectedState && state.state === selectedState.state) {
+          ctx.beginPath();
+          ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      });
+    }
+
+  }, [mapVisible, selectedState, mapView]);
+
   // Calculate totals for summary stats
   const totalIncidents = stateData.reduce((sum, state) => sum + state.incidents, 0);
   const totalResolved = stateData.reduce((sum, state) => sum + state.resolved, 0);
   const resolvedPercentage = Math.round((totalResolved / totalIncidents) * 100);
 
   return (
-    <section id="activity-map" className="py-24 px-6 bg-gray-50">
+    <section id="activity-map" className="py-24 px-6 bg-gradient-to-b from-background to-secondary/30 dark:from-background dark:to-gray-900/30">
       <div className="container mx-auto max-w-6xl">
         <div className="text-center mb-16">
-          <div className="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium bg-orange-100 text-orange-600 mb-4">
+          <div className="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-300 mb-4">
             <MapPin className="h-4 w-4 mr-1" />
             <span>Geographic Data</span>
           </div>
           
-          <h2 className="text-3xl md:text-5xl font-bold mb-6">Cyber Crime Activity Map</h2>
+          <h2 className="text-3xl md:text-5xl font-bold mb-6 bg-gradient-to-br from-primary to-blue-500 dark:from-primary dark:to-blue-400 bg-clip-text text-transparent animate-gradient-x">
+            Cyber Crime Activity Map
+          </h2>
           
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-6">
+          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-6 font-display">
             Track reported cyber crime incidents across India to identify hotspots and trends.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
-            <div className="glass-card p-4">
-              <p className="text-sm text-gray-500 mb-1">Total Reported</p>
+            <div className="futuristic-card">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1 font-mono">Total Reported</p>
               <p className="text-3xl font-bold text-primary">{formatNumber(totalIncidents)}</p>
               <div className="flex items-center justify-center mt-1">
                 <AlertTriangle className="h-4 w-4 text-orange-500 mr-1" />
@@ -109,18 +213,18 @@ const ActivityMap = () => {
               </div>
             </div>
             
-            <div className="glass-card p-4">
-              <p className="text-sm text-gray-500 mb-1">Cases Resolved</p>
-              <p className="text-3xl font-bold text-green-600">{formatNumber(totalResolved)}</p>
+            <div className="futuristic-card">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1 font-mono">Cases Resolved</p>
+              <p className="text-3xl font-bold text-green-600 dark:text-green-500">{formatNumber(totalResolved)}</p>
               <div className="flex items-center justify-center mt-1">
                 <Check className="h-4 w-4 text-green-500 mr-1" />
                 <span className="text-sm">Successfully resolved</span>
               </div>
             </div>
             
-            <div className="glass-card p-4">
-              <p className="text-sm text-gray-500 mb-1">Resolution Rate</p>
-              <p className="text-3xl font-bold text-blue-600">{resolvedPercentage}%</p>
+            <div className="futuristic-card">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1 font-mono">Resolution Rate</p>
+              <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">{resolvedPercentage}%</p>
               <div className="flex items-center justify-center mt-1">
                 <TrendingUp className="h-4 w-4 text-blue-500 mr-1" />
                 <span className="text-sm">National average</span>
@@ -129,30 +233,41 @@ const ActivityMap = () => {
           </div>
         </div>
 
+        <div className="flex justify-center mb-6">
+          <ToggleGroup type="single" value={mapView} onValueChange={(value) => value && setMapView(value as 'heatmap' | 'bubble')}>
+            <ToggleGroupItem value="heatmap" aria-label="Heatmap view" className="font-mono text-xs">
+              HEATMAP
+            </ToggleGroupItem>
+            <ToggleGroupItem value="bubble" aria-label="Bubble view" className="font-mono text-xs">
+              BUBBLE
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+
         <div ref={mapRef} className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-          <div className="lg:col-span-2 glass-card p-6 h-[500px] overflow-auto">
+          <div className="lg:col-span-2 futuristic-card h-[500px] overflow-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold">States Ranking</h3>
-              <div className="inline-flex p-0.5 rounded-md bg-gray-100 text-xs">
+              <h3 className="font-mono text-sm">STATES RANKING</h3>
+              <div className="inline-flex p-0.5 rounded-md bg-secondary/80 dark:bg-gray-800/80 text-xs font-mono">
                 <button
                   onClick={() => setSortBy('incidents')}
                   className={`px-3 py-1 rounded-md transition-all ${
                     sortBy === 'incidents' 
-                      ? 'bg-white shadow-sm font-medium' 
-                      : 'text-gray-600'
+                      ? 'bg-primary text-white shadow-sm font-medium' 
+                      : 'text-gray-600 dark:text-gray-300'
                   }`}
                 >
-                  By Cases
+                  BY CASES
                 </button>
                 <button
                   onClick={() => setSortBy('resolved')}
                   className={`px-3 py-1 rounded-md transition-all ${
                     sortBy === 'resolved' 
-                      ? 'bg-white shadow-sm font-medium' 
-                      : 'text-gray-600'
+                      ? 'bg-primary text-white shadow-sm font-medium' 
+                      : 'text-gray-600 dark:text-gray-300'
                   }`}
                 >
-                  By Resolved
+                  BY RESOLVED
                 </button>
               </div>
             </div>
@@ -164,17 +279,17 @@ const ActivityMap = () => {
                   onClick={() => setSelectedState(state)}
                   className={`p-3 rounded-lg cursor-pointer transition-all ${
                     selectedState?.state === state.state
-                      ? 'bg-primary/10 border border-primary/20'
-                      : 'hover:bg-gray-50'
+                      ? 'bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                   }`}
                 >
                   <div className="flex justify-between items-center">
                     <div className="flex items-center">
-                      <span className="w-5 text-sm text-gray-400">{index + 1}</span>
+                      <span className="w-5 text-sm text-gray-400 font-mono">{index + 1}</span>
                       <span className="font-medium">{state.state}</span>
                     </div>
                     <div className="flex items-center">
-                      <span className="font-medium text-sm">
+                      <span className="font-mono text-sm">
                         {formatNumber(state[sortBy])}
                       </span>
                       {state.trend === 'up' && <TrendingUp className="ml-1 h-3.5 w-3.5 text-red-500" />}
@@ -186,50 +301,88 @@ const ActivityMap = () => {
             </div>
           </div>
           
-          <div className="lg:col-span-3 glass-card p-6 relative overflow-hidden">
-            <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-700 ${mapVisible ? 'opacity-100' : 'opacity-0'}`}>
-              <div className="relative w-full h-full">
-                {/* This is a placeholder for where an actual India map SVG would go */}
-                <div className="p-4 text-center absolute inset-0 flex flex-col items-center justify-center">
-                  <p className="text-gray-500 mb-4">
-                    Interactive India map would be displayed here, showing heatmap of cyber crime incidents
-                  </p>
+          <div className="lg:col-span-3 futuristic-card !p-0 relative overflow-hidden">
+            <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-700 bg-gradient-to-br from-black/5 to-primary/5 dark:from-black/30 dark:to-primary/10 ${mapVisible ? 'opacity-100' : 'opacity-0'}`}>
+              <canvas 
+                ref={canvasRef} 
+                className="absolute inset-0 w-full h-full cursor-pointer"
+                onClick={(e) => {
+                  if (!canvasRef.current) return;
                   
-                  {selectedState ? (
-                    <div className="glass-card p-4 max-w-xs w-full mx-auto">
-                      <h3 className="font-semibold text-lg">{selectedState.state}</h3>
-                      <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <p className="text-gray-500">Reported</p>
-                          <p className="font-bold text-red-600">{formatNumber(selectedState.incidents)}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-500">Resolved</p>
-                          <p className="font-bold text-green-600">{formatNumber(selectedState.resolved)}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-500">Resolution Rate</p>
-                          <p className="font-bold">
-                            {Math.round((selectedState.resolved / selectedState.incidents) * 100)}%
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-gray-500">Top Scam</p>
-                          <p className="font-bold">{selectedState.topType}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="italic text-sm">Select a state to view detailed statistics</p>
-                  )}
-                </div>
+                  const rect = canvasRef.current.getBoundingClientRect();
+                  const x = e.clientX - rect.left;
+                  const y = e.clientY - rect.top;
+                  
+                  // Find the closest state to the click
+                  let closestState = null;
+                  let minDistance = Infinity;
+                  
+                  stateData.forEach(state => {
+                    if (!state.coordinates) return;
+                    
+                    // Map coordinates to canvas position (same logic as in the draw function)
+                    const minLon = 68;
+                    const maxLon = 97;
+                    const minLat = 8;
+                    const maxLat = 37;
+                    
+                    const canvasX = ((state.coordinates[0] - minLon) / (maxLon - minLon)) * canvasRef.current!.width;
+                    const canvasY = canvasRef.current!.height - ((state.coordinates[1] - minLat) / (maxLat - minLat)) * canvasRef.current!.height;
+                    
+                    const distance = Math.sqrt(Math.pow(x - canvasX, 2) + Math.pow(y - canvasY, 2));
+                    
+                    if (distance < minDistance) {
+                      minDistance = distance;
+                      closestState = state;
+                    }
+                  });
+                  
+                  // Only select if within a reasonable distance (30px)
+                  if (minDistance < 30 && closestState) {
+                    setSelectedState(closestState);
+                  }
+                }}
+              />
+              
+              <div className="absolute top-4 left-4 text-sm font-mono text-white/70 dark:text-white/80 bg-black/20 dark:bg-black/40 px-2 py-1 rounded">
+                Interactive India Map
               </div>
+              
+              {selectedState ? (
+                <div className="absolute bottom-4 right-4 futuristic-card !p-4 max-w-xs w-full mx-auto animate-fade-in">
+                  <h3 className="font-mono text-lg">{selectedState.state}</h3>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400 font-mono text-xs">REPORTED</p>
+                      <p className="font-bold text-red-600 dark:text-red-400">{formatNumber(selectedState.incidents)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400 font-mono text-xs">RESOLVED</p>
+                      <p className="font-bold text-green-600 dark:text-green-400">{formatNumber(selectedState.resolved)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400 font-mono text-xs">RESOLUTION</p>
+                      <p className="font-bold">
+                        {Math.round((selectedState.resolved / selectedState.incidents) * 100)}%
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400 font-mono text-xs">TOP SCAM</p>
+                      <p className="font-bold">{selectedState.topType}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="italic text-sm absolute bottom-4 right-4 font-mono bg-black/20 dark:bg-black/40 px-3 py-1 rounded text-white/70 dark:text-white/80">
+                  Click on a state to view statistics
+                </p>
+              )}
             </div>
           </div>
         </div>
         
-        <div className="mt-12 text-center text-gray-600">
-          <p className="mb-2">Data based on reported incidents from April 2022 to March 2023</p>
+        <div className="mt-12 text-center text-gray-600 dark:text-gray-400">
+          <p className="mb-2 font-mono text-xs">Data based on reported incidents from April 2022 to March 2023</p>
           <p className="text-sm">Source: Ministry of Home Affairs, Indian Cyber Crime Coordination Centre (I4C)</p>
         </div>
       </div>

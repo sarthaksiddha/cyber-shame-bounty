@@ -1,5 +1,5 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -39,16 +39,16 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 225 14% 10%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 228 12% 12%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 228 12% 8%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 100% 50%;
+    --primary: 210 100% 60%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
     --secondary: 217.2 32.6% 17.5%;
@@ -76,19 +76,60 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', sans-serif;
   }
 
   html {
     scroll-behavior: smooth;
   }
 
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight;
+  }
+
   .glass-card {
     @apply bg-white bg-opacity-60 backdrop-blur-md rounded-xl shadow-lg border border-white border-opacity-20;
   }
 
+  .dark .glass-card {
+    @apply bg-gray-900/40 backdrop-blur-md border-gray-800/50;
+  }
+
+  .futuristic-card {
+    @apply bg-gradient-to-br from-primary/10 to-secondary/20 backdrop-blur-md rounded-xl shadow-lg border border-primary/20 p-6 transition-all hover:shadow-primary/20 hover:shadow-xl;
+  }
+
+  .dark .futuristic-card {
+    @apply bg-gradient-to-br from-primary/20 to-secondary/5 backdrop-blur-md border-primary/30;
+  }
+
   .text-balance {
     text-wrap: balance;
+  }
+
+  .neo-border {
+    @apply border border-white/20 dark:border-white/10 relative overflow-hidden;
+  }
+
+  .neo-border::after {
+    content: '';
+    @apply absolute inset-0 rounded-xl border border-primary/30 dark:border-primary/20 scale-[0.98] opacity-0 transition-all duration-300;
+  }
+
+  .neo-border:hover::after {
+    @apply scale-[1.01] opacity-100;
+  }
+
+  .glow-effect {
+    @apply relative;
+  }
+
+  .glow-effect::before {
+    content: '';
+    @apply absolute -inset-px rounded-xl bg-gradient-to-r from-primary via-secondary to-primary blur-sm opacity-50 -z-10 transition-opacity duration-500;
+  }
+
+  .glow-effect:hover::before {
+    @apply opacity-100;
   }
 }
 
