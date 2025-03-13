@@ -6,6 +6,7 @@ import HallOfShame from '../components/HallOfShame';
 import Resources from '../components/Resources';
 import ActivityMap from '../components/ActivityMap';
 import Footer from '../components/Footer';
+import { Toaster } from "@/components/ui/toaster";
 
 const Index = () => {
   // Smooth scroll to section when clicking on anchor links
@@ -45,6 +46,7 @@ const Index = () => {
         <ActivityMap />
       </main>
       <Footer />
+      <Toaster />
     </div>
   );
 };
