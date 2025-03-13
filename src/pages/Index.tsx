@@ -6,7 +6,6 @@ import HallOfShame from '../components/HallOfShame';
 import Resources from '../components/Resources';
 import ActivityMap from '../components/ActivityMap';
 import Footer from '../components/Footer';
-import ThemeToggle from '../components/ThemeToggle';
 
 const Index = () => {
   // Smooth scroll to section when clicking on anchor links
@@ -38,9 +37,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex flex-col relative">
-      <div className="fixed bottom-6 right-6 z-50">
-        <ThemeToggle />
-      </div>
       <Header />
       <main>
         <Hero />

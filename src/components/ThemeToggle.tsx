@@ -32,7 +32,7 @@ const ThemeToggle = () => {
   return (
     <Toggle 
       aria-label="Toggle theme" 
-      className="rounded-full w-10 h-10 p-0 bg-secondary/80 dark:bg-gray-800 hover:bg-primary/10 dark:hover:bg-primary/20"
+      className="rounded-full w-10 h-10 p-0 bg-secondary hover:bg-secondary/90 dark:bg-gray-800 dark:hover:bg-gray-700 border border-primary/10"
       pressed={isDarkMode}
       onPressedChange={toggleTheme}
     >

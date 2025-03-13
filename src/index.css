@@ -85,13 +85,17 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-display tracking-tight;
   }
+  
+  code, pre {
+    @apply font-mono;
+  }
 
   .glass-card {
-    @apply bg-white bg-opacity-60 backdrop-blur-md rounded-xl shadow-lg border border-white border-opacity-20;
+    @apply bg-white/90 backdrop-blur-md rounded-xl shadow-lg border border-white/30;
   }
 
   .dark .glass-card {
-    @apply bg-gray-900/40 backdrop-blur-md border-gray-800/50;
+    @apply bg-gray-900/70 border-gray-700/50;
   }
 
   .futuristic-card {
