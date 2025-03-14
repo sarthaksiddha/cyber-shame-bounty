@@ -69,7 +69,6 @@ const ActivityMap = () => {
 
   const sortedStateData = [...stateData].sort((a, b) => b[sortBy] - a[sortBy]);
 
-  // Initialize MapMyIndia map
   useEffect(() => {
     const observerOptions = {
       threshold: 0.1
@@ -81,7 +80,6 @@ const ActivityMap = () => {
           setMapVisible(true);
           observer.unobserve(entry.target);
 
-          // Initialize map when it becomes visible
           initializeMap();
         }
       });
@@ -98,7 +96,6 @@ const ActivityMap = () => {
     };
   }, []);
 
-  // Update map markers/heatmap when settings change
   useEffect(() => {
     if (mapVisible && mapInstanceRef.current) {
       updateMapView();
@@ -106,14 +103,12 @@ const ActivityMap = () => {
   }, [mapView, selectedState, mapVisible]);
 
   const initializeMap = () => {
-    // Check if the MapMyIndia API is loaded
     if (!window.MapmyIndia || !mapRef.current) {
       console.error('MapMyIndia API not loaded or map container not found');
       return;
     }
 
     try {
-      // Clear previous map instance if it exists
       if (mapInstanceRef.current) {
         mapInstanceRef.current = null;
         if (mapRef.current) {
@@ -121,9 +116,8 @@ const ActivityMap = () => {
         }
       }
 
-      // Create new map instance
       const mapOptions = {
-        center: [20.5937, 78.9629], // Center of India
+        center: [20.5937, 78.9629],
         zoom: 5,
         zoomControl: true,
         hybrid: true
@@ -131,9 +125,7 @@ const ActivityMap = () => {
 
       mapInstanceRef.current = new window.MapmyIndia.Map(mapRef.current, mapOptions);
       
-      // Initialize map with current view mode
       updateMapView();
-
     } catch (error) {
       console.error('Error initializing MapMyIndia map:', error);
     }
@@ -142,12 +134,10 @@ const ActivityMap = () => {
   const updateMapView = () => {
     if (!mapInstanceRef.current) return;
 
-    // Clear previous markers
     mapInstanceRef.current.removeAllMarkers?.();
     mapInstanceRef.current.removeAllPolygons?.();
 
     if (mapView === 'bubble') {
-      // Add state markers (bubble view)
       stateData.forEach((state) => {
         if (!state.coordinates) return;
 
@@ -155,7 +145,6 @@ const ActivityMap = () => {
         const radius = Math.sqrt(state.incidents) / 20;
         const isSelected = selectedState?.state === state.state;
 
-        // Create marker with scaled size based on incidents
         const markerOptions = {
           position: state.coordinates,
           icon: {
@@ -169,25 +158,24 @@ const ActivityMap = () => {
           map: mapInstanceRef.current
         };
 
-        // Create marker and add click event
         const marker = new window.MapmyIndia.Marker(markerOptions);
         
-        // Add click handler (implementation would depend on MapMyIndia API)
-        // This is a placeholder for the actual implementation
-        marker.addListener?.('click', () => {
-          setSelectedState(state);
-        });
+        if (marker.addListener) {
+          marker.addListener('click');
+          mapInstanceRef.current.addEventListener('click', (e: any) => {
+            if (e.target === marker || e.target.contains(marker)) {
+              setSelectedState(state);
+            }
+          });
+        }
       });
     } else {
-      // Heatmap view implementation would depend on MapMyIndia's heatmap support
-      // This is a simplified alternative if heatmap isn't directly supported
       stateData.forEach((state) => {
         if (!state.coordinates) return;
         
         const intensity = Math.min(state.incidents / 5000, 1);
-        const radius = Math.sqrt(state.incidents) / 10 * 30000; // Scale for map units
+        const radius = Math.sqrt(state.incidents) / 10 * 30000;
         
-        // Create a circular polygon as a "heatmap" effect
         try {
           const circleCoords = generateCirclePoints(state.coordinates, radius, 20);
           
@@ -209,17 +197,15 @@ const ActivityMap = () => {
     }
   };
 
-  // Helper function to generate circle points for heatmap
   const generateCirclePoints = (center: [number, number], radius: number, points: number) => {
     const coords = [];
-    const earthRadius = 6378137; // Earth's radius in meters
+    const earthRadius = 6378137;
     
     for (let i = 0; i <= points; i++) {
       const angle = (i / points) * 2 * Math.PI;
       const dx = radius * Math.cos(angle);
       const dy = radius * Math.sin(angle);
       
-      // Calculate new position
       const lat = center[1] + (dy / earthRadius) * (180 / Math.PI);
       const lng = center[0] + (dx / earthRadius) * (180 / Math.PI) / Math.cos(center[1] * Math.PI / 180);
       
