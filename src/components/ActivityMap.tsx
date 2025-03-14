@@ -1,7 +1,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { MapPin, AlertTriangle, TrendingUp, Check } from 'lucide-react';
+import { MapPin, AlertTriangle, TrendingUp, Check, ZoomIn, ZoomOut, Undo } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
+import { Button } from './ui/button';
 
 interface CrimeData {
   state: string;
@@ -43,6 +44,15 @@ const stateData: CrimeData[] = [
   { state: 'Sikkim', incidents: 98, resolved: 59, trend: 'down', topType: 'Financial Fraud', coordinates: [88.5122, 27.5330] },
 ];
 
+// India map outline coordinates (simplified)
+const indiaOutline = [
+  [77.0, 35.0], [79.0, 35.0], [84.0, 35.0], [88.0, 35.0], 
+  [92.0, 28.0], [93.0, 25.0], [94.0, 23.0], [94.0, 17.0], 
+  [93.0, 13.0], [85.0, 8.0], [79.0, 8.0], [73.0, 8.0], 
+  [69.0, 10.0], [68.0, 15.0], [68.0, 20.0], [69.0, 24.0], 
+  [70.0, 27.0], [72.0, 32.0], [75.0, 34.0], [77.0, 35.0]
+];
+
 const formatNumber = (num: number): string => {
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 };
@@ -54,6 +64,7 @@ const ActivityMap = () => {
   const [sortBy, setSortBy] = useState<'incidents' | 'resolved'>('incidents');
   const [mapVisible, setMapVisible] = useState(false);
   const [mapView, setMapView] = useState<'heatmap' | 'bubble'>('heatmap');
+  const [zoomLevel, setZoomLevel] = useState(1.0);
 
   // Sort data based on current sort criteria
   const sortedStateData = [...stateData].sort((a, b) => b[sortBy] - a[sortBy]);
@@ -98,13 +109,6 @@ const ActivityMap = () => {
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw India map outline (simplified)
-    ctx.beginPath();
-    // This is a very simplified path for India's outline
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
     // Map coordinates to canvas
     const mapCoordinatesToCanvas = (lon: number, lat: number) => {
       // These are approximate mappings for India
@@ -113,11 +117,33 @@ const ActivityMap = () => {
       const minLat = 8;
       const maxLat = 37;
 
-      const x = ((lon - minLon) / (maxLon - minLon)) * canvas.width;
-      const y = canvas.height - ((lat - minLat) / (maxLat - minLat)) * canvas.height;
+      const x = ((lon - minLon) / (maxLon - minLon)) * canvas.width * zoomLevel;
+      const y = canvas.height - ((lat - minLat) / (maxLat - minLat)) * canvas.height * zoomLevel;
       
-      return { x, y };
+      // Apply centering for zoomed view
+      const offsetX = canvas.width * (1 - zoomLevel) / 2;
+      const offsetY = canvas.height * (1 - zoomLevel) / 2;
+      
+      return { 
+        x: x + offsetX, 
+        y: y + offsetY 
+      };
     };
+
+    // Draw India map outline
+    ctx.beginPath();
+    indiaOutline.forEach((coord, index) => {
+      const { x, y } = mapCoordinatesToCanvas(coord[0], coord[1]);
+      if (index === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
 
     if (mapView === 'heatmap') {
       // Draw heatmap
@@ -179,7 +205,19 @@ const ActivityMap = () => {
       });
     }
 
-  }, [mapVisible, selectedState, mapView]);
+  }, [mapVisible, selectedState, mapView, zoomLevel]);
+
+  const handleZoomIn = () => {
+    setZoomLevel(prev => Math.min(prev + 0.2, 2.0));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel(prev => Math.max(prev - 0.2, 0.6));
+  };
+
+  const handleResetZoom = () => {
+    setZoomLevel(1.0);
+  };
 
   // Calculate totals for summary stats
   const totalIncidents = stateData.reduce((sum, state) => sum + state.incidents, 0);
@@ -233,7 +271,7 @@ const ActivityMap = () => {
           </div>
         </div>
 
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-6 space-x-4">
           <ToggleGroup type="single" value={mapView} onValueChange={(value) => value && setMapView(value as 'heatmap' | 'bubble')}>
             <ToggleGroupItem value="heatmap" aria-label="Heatmap view" className="font-mono text-xs">
               HEATMAP
@@ -320,16 +358,26 @@ const ActivityMap = () => {
                   stateData.forEach(state => {
                     if (!state.coordinates) return;
                     
-                    // Map coordinates to canvas position (same logic as in the draw function)
+                    // Map coordinates to canvas position with zoom
                     const minLon = 68;
                     const maxLon = 97;
                     const minLat = 8;
                     const maxLat = 37;
                     
-                    const canvasX = ((state.coordinates[0] - minLon) / (maxLon - minLon)) * canvasRef.current!.width;
-                    const canvasY = canvasRef.current!.height - ((state.coordinates[1] - minLat) / (maxLat - minLat)) * canvasRef.current!.height;
+                    const canvasWidth = canvasRef.current!.width;
+                    const canvasHeight = canvasRef.current!.height;
                     
-                    const distance = Math.sqrt(Math.pow(x - canvasX, 2) + Math.pow(y - canvasY, 2));
+                    const pointX = ((state.coordinates[0] - minLon) / (maxLon - minLon)) * canvasWidth * zoomLevel;
+                    const pointY = canvasHeight - ((state.coordinates[1] - minLat) / (maxLat - minLat)) * canvasHeight * zoomLevel;
+                    
+                    // Apply centering for zoomed view
+                    const offsetX = canvasWidth * (1 - zoomLevel) / 2;
+                    const offsetY = canvasHeight * (1 - zoomLevel) / 2;
+                    
+                    const adjustedX = pointX + offsetX;
+                    const adjustedY = pointY + offsetY;
+                    
+                    const distance = Math.sqrt(Math.pow(x - adjustedX, 2) + Math.pow(y - adjustedY, 2));
                     
                     if (distance < minDistance) {
                       minDistance = distance;
@@ -337,8 +385,9 @@ const ActivityMap = () => {
                     }
                   });
                   
-                  // Only select if within a reasonable distance (30px)
-                  if (minDistance < 30 && closestState) {
+                  // Only select if within a reasonable distance (adjust based on zoom)
+                  const clickRadius = 30 * (1 / zoomLevel);
+                  if (minDistance < clickRadius && closestState) {
                     setSelectedState(closestState);
                   }
                 }}
@@ -346,6 +395,34 @@ const ActivityMap = () => {
               
               <div className="absolute top-4 left-4 text-sm font-mono text-white/70 dark:text-white/80 bg-black/20 dark:bg-black/40 px-2 py-1 rounded">
                 Interactive India Map
+              </div>
+              
+              {/* Zoom controls */}
+              <div className="absolute top-4 right-4 flex flex-col space-y-2">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={handleZoomIn}
+                  className="bg-black/20 dark:bg-black/40 border-0 text-white/80 hover:bg-black/30 hover:text-white"
+                >
+                  <ZoomIn size={18} />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={handleZoomOut}
+                  className="bg-black/20 dark:bg-black/40 border-0 text-white/80 hover:bg-black/30 hover:text-white"
+                >
+                  <ZoomOut size={18} />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={handleResetZoom}
+                  className="bg-black/20 dark:bg-black/40 border-0 text-white/80 hover:bg-black/30 hover:text-white"
+                >
+                  <Undo size={18} />
+                </Button>
               </div>
               
               {selectedState ? (
