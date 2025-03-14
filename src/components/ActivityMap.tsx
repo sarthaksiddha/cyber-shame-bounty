@@ -1,7 +1,32 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { MapPin, AlertTriangle, TrendingUp, Check, ZoomIn, ZoomOut, Undo } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Button } from './ui/button';
+
+// India outline coordinates for drawing the map
+const indiaOutline: [number, number][] = [
+  [77.8374, 35.4940], // Northern Kashmir
+  [79.8000, 34.8000],
+  [81.5000, 33.5000],
+  [86.0000, 31.9000],
+  [89.0000, 28.2000],
+  [97.3000, 28.0000],
+  [97.4000, 27.5000],
+  [99.0000, 27.0000],
+  [97.0000, 24.0000],
+  [94.5000, 16.0000],
+  [92.5000, 12.0000],
+  [80.0000, 7.0000],  // Southern tip
+  [77.0000, 8.0000],
+  [72.5000, 15.0000],
+  [69.0000, 19.0000],
+  [70.0000, 24.0000],
+  [68.0000, 27.0000], // Western border
+  [71.0000, 29.5000],
+  [74.0000, 32.0000],
+  [77.8374, 35.4940]  // Back to start
+];
 
 interface CrimeData {
   state: string;
