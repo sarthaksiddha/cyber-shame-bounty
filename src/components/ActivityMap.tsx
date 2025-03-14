@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { MapPin, AlertTriangle, TrendingUp, Check, ZoomIn, ZoomOut, Undo } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
@@ -7,7 +8,7 @@ import { Button } from './ui/button';
 declare global {
   interface Window {
     MapmyIndia: {
-      Map: new (options: any) => any;
+      Map: new (element: HTMLElement, options: any) => any;
       Marker: new (options: any) => any;
       Polygon: new (options: any) => any;
     };
@@ -123,6 +124,7 @@ const ActivityMap = () => {
         hybrid: true
       };
 
+      // Fix: Pass the element as first arg and options as second arg
       mapInstanceRef.current = new window.MapmyIndia.Map(mapRef.current, mapOptions);
       
       updateMapView();
@@ -134,8 +136,14 @@ const ActivityMap = () => {
   const updateMapView = () => {
     if (!mapInstanceRef.current) return;
 
-    mapInstanceRef.current.removeAllMarkers?.();
-    mapInstanceRef.current.removeAllPolygons?.();
+    // Clear previous markers if methods exist
+    if (typeof mapInstanceRef.current.removeAllMarkers === 'function') {
+      mapInstanceRef.current.removeAllMarkers();
+    }
+    
+    if (typeof mapInstanceRef.current.removeAllPolygons === 'function') {
+      mapInstanceRef.current.removeAllPolygons();
+    }
 
     if (mapView === 'bubble') {
       stateData.forEach((state) => {
@@ -158,15 +166,17 @@ const ActivityMap = () => {
           map: mapInstanceRef.current
         };
 
-        const marker = new window.MapmyIndia.Marker(markerOptions);
-        
-        if (marker.addListener) {
-          marker.addListener('click');
-          mapInstanceRef.current.addEventListener('click', (e: any) => {
-            if (e.target === marker || e.target.contains(marker)) {
+        try {
+          const marker = new window.MapmyIndia.Marker(markerOptions);
+          
+          // Safer event handling approach
+          if (typeof marker.addListener === 'function') {
+            marker.addListener('click', () => {
               setSelectedState(state);
-            }
-          });
+            });
+          }
+        } catch (error) {
+          console.error('Error creating marker:', error);
         }
       });
     } else {
@@ -372,7 +382,6 @@ const ActivityMap = () => {
         <div className="mt-12 text-center text-gray-600 dark:text-gray-400">
           <p className="mb-2 font-mono text-xs">Data based on reported incidents from April 2022 to March 2023</p>
           <p className="text-sm">Source: Ministry of Home Affairs, Indian Cyber Crime Coordination Centre (I4C)</p>
-          <p className="mt-2 text-xs italic">Note: You need to replace "map_js_key" in the HTML file with a valid MapMyIndia API key</p>
         </div>
       </div>
     </section>
