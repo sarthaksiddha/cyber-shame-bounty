@@ -1,11 +1,13 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ArrowDown, Shield, Bug, Award } from 'lucide-react';
+import ScamReportDialog from './ScamReportDialog';
 
 const Hero = () => {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const descRef = useRef<HTMLParagraphElement>(null);
   const ctaRef = useRef<HTMLDivElement>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
     const observerOptions = {
@@ -71,13 +73,13 @@ const Hero = () => {
           ref={ctaRef}
           className="flex flex-col sm:flex-row items-center justify-center gap-4 opacity-0 translate-y-4 animate-delay-300"
         >
-          <a 
-            href="#bounty" 
+          <button 
+            onClick={() => setIsDialogOpen(true)}
             className="px-8 py-4 rounded-full bg-primary text-white font-semibold transition-all hover:shadow-lg hover:shadow-primary/20 transform hover:-translate-y-1 active:translate-y-0 active:shadow-none flex items-center gap-2"
           >
             <Bug className="h-5 w-5" />
             <span>Join the Program</span>
-          </a>
+          </button>
           <a 
             href="#hall-of-shame" 
             className="px-8 py-4 rounded-full bg-white text-primary font-semibold border border-primary/20 transition-all hover:shadow-lg hover:shadow-primary/10 transform hover:-translate-y-1 active:translate-y-0 active:shadow-none flex items-center gap-2"
@@ -89,12 +91,20 @@ const Hero = () => {
       </div>
       
       <a 
-        href="#bounty"
+        href="#hall-of-shame"
         className="absolute bottom-10 left-1/2 transform -translate-x-1/2 flex flex-col items-center text-gray-400 hover:text-primary transition-colors"
       >
         <span className="text-sm mb-2">Scroll to explore</span>
         <ArrowDown className="h-5 w-5 animate-bounce" />
       </a>
+
+      {/* Dialog for Join the Program */}
+      {isDialogOpen && (
+        <ScamReportDialog 
+          open={isDialogOpen} 
+          onOpenChange={setIsDialogOpen}
+        />
+      )}
     </section>
   );
 };
