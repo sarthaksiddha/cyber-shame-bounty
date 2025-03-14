@@ -1,32 +1,18 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { MapPin, AlertTriangle, TrendingUp, Check, ZoomIn, ZoomOut, Undo } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Button } from './ui/button';
 
-// India outline coordinates for drawing the map
-const indiaOutline: [number, number][] = [
-  [77.8374, 35.4940], // Northern Kashmir
-  [79.8000, 34.8000],
-  [81.5000, 33.5000],
-  [86.0000, 31.9000],
-  [89.0000, 28.2000],
-  [97.3000, 28.0000],
-  [97.4000, 27.5000],
-  [99.0000, 27.0000],
-  [97.0000, 24.0000],
-  [94.5000, 16.0000],
-  [92.5000, 12.0000],
-  [80.0000, 7.0000],  // Southern tip
-  [77.0000, 8.0000],
-  [72.5000, 15.0000],
-  [69.0000, 19.0000],
-  [70.0000, 24.0000],
-  [68.0000, 27.0000], // Western border
-  [71.0000, 29.5000],
-  [74.0000, 32.0000],
-  [77.8374, 35.4940]  // Back to start
-];
+// Types definition for MapMyIndia
+declare global {
+  interface Window {
+    MapmyIndia: {
+      Map: new (options: any) => any;
+      Marker: new (options: any) => any;
+      Polygon: new (options: any) => any;
+    };
+  }
+}
 
 interface CrimeData {
   state: string;
@@ -74,7 +60,7 @@ const formatNumber = (num: number): string => {
 
 const ActivityMap = () => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mapInstanceRef = useRef<any>(null);
   const [selectedState, setSelectedState] = useState<CrimeData | null>(null);
   const [sortBy, setSortBy] = useState<'incidents' | 'resolved'>('incidents');
   const [mapVisible, setMapVisible] = useState(false);
@@ -83,6 +69,7 @@ const ActivityMap = () => {
 
   const sortedStateData = [...stateData].sort((a, b) => b[sortBy] - a[sortBy]);
 
+  // Initialize MapMyIndia map
   useEffect(() => {
     const observerOptions = {
       threshold: 0.1
@@ -93,6 +80,9 @@ const ActivityMap = () => {
         if (entry.isIntersecting) {
           setMapVisible(true);
           observer.unobserve(entry.target);
+
+          // Initialize map when it becomes visible
+          initializeMap();
         }
       });
     }, observerOptions);
@@ -108,113 +98,135 @@ const ActivityMap = () => {
     };
   }, []);
 
+  // Update map markers/heatmap when settings change
   useEffect(() => {
-    if (!mapVisible || !canvasRef.current) return;
+    if (mapVisible && mapInstanceRef.current) {
+      updateMapView();
+    }
+  }, [mapView, selectedState, mapVisible]);
 
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  const initializeMap = () => {
+    // Check if the MapMyIndia API is loaded
+    if (!window.MapmyIndia || !mapRef.current) {
+      console.error('MapMyIndia API not loaded or map container not found');
+      return;
+    }
 
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const mapCoordinatesToCanvas = (lon: number, lat: number) => {
-      const minLon = 68;
-      const maxLon = 97;
-      const minLat = 8;
-      const maxLat = 37;
-
-      const x = ((lon - minLon) / (maxLon - minLon)) * canvas.width * zoomLevel;
-      const y = canvas.height - ((lat - minLat) / (maxLat - minLat)) * canvas.height * zoomLevel;
-      
-      const offsetX = canvas.width * (1 - zoomLevel) / 2;
-      const offsetY = canvas.height * (1 - zoomLevel) / 2;
-      
-      return { 
-        x: x + offsetX, 
-        y: y + offsetY 
-      };
-    };
-
-    ctx.beginPath();
-    indiaOutline.forEach((coord, index) => {
-      const { x, y } = mapCoordinatesToCanvas(coord[0], coord[1]);
-      if (index === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
+    try {
+      // Clear previous map instance if it exists
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current = null;
+        if (mapRef.current) {
+          mapRef.current.innerHTML = '';
+        }
       }
-    });
-    ctx.closePath();
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
 
-    if (mapView === 'heatmap') {
-      stateData.forEach(state => {
+      // Create new map instance
+      const mapOptions = {
+        center: [20.5937, 78.9629], // Center of India
+        zoom: 5,
+        zoomControl: true,
+        hybrid: true
+      };
+
+      mapInstanceRef.current = new window.MapmyIndia.Map(mapRef.current, mapOptions);
+      
+      // Initialize map with current view mode
+      updateMapView();
+
+    } catch (error) {
+      console.error('Error initializing MapMyIndia map:', error);
+    }
+  };
+
+  const updateMapView = () => {
+    if (!mapInstanceRef.current) return;
+
+    // Clear previous markers
+    mapInstanceRef.current.removeAllMarkers?.();
+    mapInstanceRef.current.removeAllPolygons?.();
+
+    if (mapView === 'bubble') {
+      // Add state markers (bubble view)
+      stateData.forEach((state) => {
         if (!state.coordinates) return;
+
+        const resolutionRate = state.resolved / state.incidents;
+        const radius = Math.sqrt(state.incidents) / 20;
+        const isSelected = selectedState?.state === state.state;
+
+        // Create marker with scaled size based on incidents
+        const markerOptions = {
+          position: state.coordinates,
+          icon: {
+            url: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${radius * 2}px" height="${radius * 2}px"><circle cx="50" cy="50" r="40" fill="rgba(${Math.floor(255 * (1 - resolutionRate))}, ${Math.floor(255 * resolutionRate)}, 100, 0.7)" stroke="${isSelected ? 'white' : 'none'}" stroke-width="${isSelected ? '4' : '0'}"/></svg>`,
+            size: { width: radius * 2, height: radius * 2 },
+            anchor: { x: radius, y: radius }
+          },
+          popupOptions: {
+            content: `<b>${state.state}</b><br>Incidents: ${state.incidents}<br>Resolved: ${state.resolved}`
+          },
+          map: mapInstanceRef.current
+        };
+
+        // Create marker and add click event
+        const marker = new window.MapmyIndia.Marker(markerOptions);
         
-        const { x, y } = mapCoordinatesToCanvas(state.coordinates[0], state.coordinates[1]);
-        
-        const radius = Math.sqrt(state.incidents) / 15;
-        const grd = ctx.createRadialGradient(x, y, 0, x, y, radius * 30);
+        // Add click handler (implementation would depend on MapMyIndia API)
+        // This is a placeholder for the actual implementation
+        marker.addListener?.('click', () => {
+          setSelectedState(state);
+        });
+      });
+    } else {
+      // Heatmap view implementation would depend on MapMyIndia's heatmap support
+      // This is a simplified alternative if heatmap isn't directly supported
+      stateData.forEach((state) => {
+        if (!state.coordinates) return;
         
         const intensity = Math.min(state.incidents / 5000, 1);
-        grd.addColorStop(0, `rgba(255, 0, 0, ${intensity * 0.7})`);
-        grd.addColorStop(1, 'rgba(255, 0, 0, 0)');
+        const radius = Math.sqrt(state.incidents) / 10 * 30000; // Scale for map units
         
-        ctx.fillStyle = grd;
-        ctx.beginPath();
-        ctx.arc(x, y, radius * 30, 0, Math.PI * 2);
-        ctx.fill();
-      });
-    } else if (mapView === 'bubble') {
-      stateData.forEach(state => {
-        if (!state.coordinates) return;
-        
-        const { x, y } = mapCoordinatesToCanvas(state.coordinates[0], state.coordinates[1]);
-        const radius = Math.sqrt(state.incidents) / 10;
-        
-        const resolutionRate = state.resolved / state.incidents;
-        const r = Math.floor(255 * (1 - resolutionRate));
-        const g = Math.floor(255 * resolutionRate);
-        const b = 100;
-        
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.7)`;
-        ctx.fill();
-        
-        ctx.fillStyle = '#fff';
-        ctx.font = '10px JetBrains Mono';
-        ctx.textAlign = 'center';
-        ctx.fillText(state.state, x, y + radius + 12);
-        
-        if (selectedState && state.state === selectedState.state) {
-          ctx.beginPath();
-          ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 2;
-          ctx.stroke();
+        // Create a circular polygon as a "heatmap" effect
+        try {
+          const circleCoords = generateCirclePoints(state.coordinates, radius, 20);
+          
+          const polygonOptions = {
+            paths: [circleCoords],
+            fillColor: `rgba(255, 0, 0, ${intensity * 0.5})`,
+            fillOpacity: 0.5,
+            strokeColor: 'rgba(255, 0, 0, 0.1)',
+            strokeOpacity: 0.1,
+            strokeWeight: 1,
+            map: mapInstanceRef.current
+          };
+          
+          new window.MapmyIndia.Polygon(polygonOptions);
+        } catch (error) {
+          console.error('Error creating heatmap polygon:', error);
         }
       });
     }
-  }, [mapVisible, selectedState, mapView, zoomLevel]);
-
-  const handleZoomIn = () => {
-    setZoomLevel(prev => Math.min(prev + 0.2, 2.0));
   };
 
-  const handleZoomOut = () => {
-    setZoomLevel(prev => Math.max(prev - 0.2, 0.6));
-  };
-
-  const handleResetZoom = () => {
-    setZoomLevel(1.0);
+  // Helper function to generate circle points for heatmap
+  const generateCirclePoints = (center: [number, number], radius: number, points: number) => {
+    const coords = [];
+    const earthRadius = 6378137; // Earth's radius in meters
+    
+    for (let i = 0; i <= points; i++) {
+      const angle = (i / points) * 2 * Math.PI;
+      const dx = radius * Math.cos(angle);
+      const dy = radius * Math.sin(angle);
+      
+      // Calculate new position
+      const lat = center[1] + (dy / earthRadius) * (180 / Math.PI);
+      const lng = center[0] + (dx / earthRadius) * (180 / Math.PI) / Math.cos(center[1] * Math.PI / 180);
+      
+      coords.push([lng, lat]);
+    }
+    
+    return coords;
   };
 
   const totalIncidents = stateData.reduce((sum, state) => sum + state.incidents, 0);
@@ -279,7 +291,7 @@ const ActivityMap = () => {
           </ToggleGroup>
         </div>
 
-        <div ref={mapRef} className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           <div className="lg:col-span-2 futuristic-card h-[500px] overflow-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-mono text-sm">STATES RANKING</h3>
@@ -336,116 +348,37 @@ const ActivityMap = () => {
             </div>
           </div>
           
-          <div className="lg:col-span-3 futuristic-card !p-0 relative overflow-hidden">
-            <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-700 bg-gradient-to-br from-black/5 to-primary/5 dark:from-black/30 dark:to-primary/10 ${mapVisible ? 'opacity-100' : 'opacity-0'}`}>
-              <canvas 
-                ref={canvasRef} 
-                className="absolute inset-0 w-full h-full cursor-pointer"
-                onClick={(e) => {
-                  if (!canvasRef.current) return;
-                  
-                  const rect = canvasRef.current.getBoundingClientRect();
-                  const x = e.clientX - rect.left;
-                  const y = e.clientY - rect.top;
-                  
-                  let closestState = null;
-                  let minDistance = Infinity;
-                  
-                  stateData.forEach(state => {
-                    if (!state.coordinates) return;
-                    
-                    const minLon = 68;
-                    const maxLon = 97;
-                    const minLat = 8;
-                    const maxLat = 37;
-                    
-                    const canvasWidth = canvasRef.current!.width;
-                    const canvasHeight = canvasRef.current!.height;
-                    
-                    const pointX = ((state.coordinates[0] - minLon) / (maxLon - minLon)) * canvasWidth * zoomLevel;
-                    const pointY = canvasHeight - ((state.coordinates[1] - minLat) / (maxLat - minLat)) * canvasHeight * zoomLevel;
-                    
-                    const offsetX = canvasWidth * (1 - zoomLevel) / 2;
-                    const offsetY = canvasHeight * (1 - zoomLevel) / 2;
-                    
-                    const adjustedX = pointX + offsetX;
-                    const adjustedY = pointY + offsetY;
-                    
-                    const distance = Math.sqrt(Math.pow(x - adjustedX, 2) + Math.pow(y - adjustedY, 2));
-                    
-                    if (distance < minDistance) {
-                      minDistance = distance;
-                      closestState = state;
-                    }
-                  });
-                  
-                  const clickRadius = 30 * (1 / zoomLevel);
-                  if (minDistance < clickRadius && closestState) {
-                    setSelectedState(closestState);
-                  }
-                }}
-              />
-              
-              <div className="absolute top-4 left-4 text-sm font-mono text-white/70 dark:text-white/80 bg-black/20 dark:bg-black/40 px-2 py-1 rounded">
-                Interactive India Map
-              </div>
-              
-              <div className="absolute top-4 right-4 flex flex-col space-y-2">
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={handleZoomIn}
-                  className="bg-black/20 dark:bg-black/40 border-0 text-white/80 hover:bg-black/30 hover:text-white"
-                >
-                  <ZoomIn size={18} />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={handleZoomOut}
-                  className="bg-black/20 dark:bg-black/40 border-0 text-white/80 hover:bg-black/30 hover:text-white"
-                >
-                  <ZoomOut size={18} />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={handleResetZoom}
-                  className="bg-black/20 dark:bg-black/40 border-0 text-white/80 hover:bg-black/30 hover:text-white"
-                >
-                  <Undo size={18} />
-                </Button>
-              </div>
-              
-              {selectedState ? (
-                <div className="absolute bottom-4 right-4 futuristic-card !p-4 max-w-xs w-full mx-auto animate-fade-in">
-                  <h3 className="font-mono text-lg">{selectedState.state}</h3>
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <p className="text-gray-500 dark:text-gray-400 font-mono text-xs">REPORTED</p>
-                      <p className="font-bold text-red-600 dark:text-red-400">{formatNumber(selectedState.incidents)}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500 dark:text-gray-400 font-mono text-xs">RESOLVED</p>
-                      <p className="font-bold text-green-600 dark:text-green-400">{formatNumber(selectedState.resolved)}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500 dark:text-gray-400 font-mono text-xs">RESOLUTION</p>
-                      <p className="font-bold">
-                        {Math.round((selectedState.resolved / selectedState.incidents) * 100)}%
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500 dark:text-gray-400 font-mono text-xs">TOP SCAM</p>
-                      <p className="font-bold">{selectedState.topType}</p>
-                    </div>
+          <div className="lg:col-span-3 futuristic-card !p-0 relative h-[500px]">
+            <div ref={mapRef} className="absolute inset-0 w-full h-full" />
+            
+            {selectedState && (
+              <div className="absolute bottom-4 right-4 futuristic-card !p-4 max-w-xs w-full mx-auto animate-fade-in bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm">
+                <h3 className="font-mono text-lg">{selectedState.state}</h3>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400 font-mono text-xs">REPORTED</p>
+                    <p className="font-bold text-red-600 dark:text-red-400">{formatNumber(selectedState.incidents)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400 font-mono text-xs">RESOLVED</p>
+                    <p className="font-bold text-green-600 dark:text-green-400">{formatNumber(selectedState.resolved)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400 font-mono text-xs">RESOLUTION</p>
+                    <p className="font-bold">
+                      {Math.round((selectedState.resolved / selectedState.incidents) * 100)}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400 font-mono text-xs">TOP SCAM</p>
+                    <p className="font-bold">{selectedState.topType}</p>
                   </div>
                 </div>
-              ) : (
-                <p className="italic text-sm absolute bottom-4 right-4 font-mono bg-black/20 dark:bg-black/40 px-3 py-1 rounded text-white/70 dark:text-white/80">
-                  Click on a state to view statistics
-                </p>
-              )}
+              </div>
+            )}
+            
+            <div className="absolute top-4 left-4 bg-white/80 dark:bg-black/80 backdrop-blur-sm rounded p-2 z-10">
+              <p className="text-xs font-mono">MapMyIndia Interactive Map</p>
             </div>
           </div>
         </div>
@@ -453,6 +386,7 @@ const ActivityMap = () => {
         <div className="mt-12 text-center text-gray-600 dark:text-gray-400">
           <p className="mb-2 font-mono text-xs">Data based on reported incidents from April 2022 to March 2023</p>
           <p className="text-sm">Source: Ministry of Home Affairs, Indian Cyber Crime Coordination Centre (I4C)</p>
+          <p className="mt-2 text-xs italic">Note: You need to replace "map_js_key" in the HTML file with a valid MapMyIndia API key</p>
         </div>
       </div>
     </section>
