@@ -1,8 +1,8 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { MapPin, AlertTriangle, TrendingUp, Check, ZoomIn, ZoomOut, Undo } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Button } from './ui/button';
+import { toast } from './ui/use-toast';
 
 // Types definition for MapMyIndia
 declare global {
@@ -67,9 +67,26 @@ const ActivityMap = () => {
   const [mapVisible, setMapVisible] = useState(false);
   const [mapView, setMapView] = useState<'heatmap' | 'bubble'>('heatmap');
   const [zoomLevel, setZoomLevel] = useState(1.0);
+  const [mapInitialized, setMapInitialized] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   const sortedStateData = [...stateData].sort((a, b) => b[sortBy] - a[sortBy]);
 
+  // Initialize map when component mounts
+  useEffect(() => {
+    if (!mapRef.current) return;
+    
+    // Try immediate initialization on first load
+    const timer = setTimeout(() => {
+      if (!mapInitialized && mapRef.current) {
+        initializeMap();
+      }
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, [mapRef.current]);
+
+  // Add intersection observer for lazy loading
   useEffect(() => {
     const observerOptions = {
       threshold: 0.1
@@ -81,7 +98,10 @@ const ActivityMap = () => {
           setMapVisible(true);
           observer.unobserve(entry.target);
 
-          initializeMap();
+          // Delay map initialization to ensure element is fully rendered
+          setTimeout(() => {
+            initializeMap();
+          }, 300);
         }
       });
     }, observerOptions);
@@ -97,113 +117,161 @@ const ActivityMap = () => {
     };
   }, []);
 
+  // Update map view when settings change
   useEffect(() => {
-    if (mapVisible && mapInstanceRef.current) {
+    if (mapVisible && mapInstanceRef.current && mapInitialized) {
       updateMapView();
     }
-  }, [mapView, selectedState, mapVisible]);
+  }, [mapView, selectedState, mapVisible, mapInitialized]);
 
   const initializeMap = () => {
-    if (!window.MapmyIndia || !mapRef.current) {
-      console.error('MapMyIndia API not loaded or map container not found');
+    if (!window.MapmyIndia) {
+      console.error('MapMyIndia API not loaded');
+      setMapError('Map API not loaded. Please refresh the page or check your internet connection.');
+      return;
+    }
+
+    if (!mapRef.current) {
+      console.error('Map container not found');
       return;
     }
 
     try {
+      // Clear previous map instance if it exists
       if (mapInstanceRef.current) {
+        // Safely dispose of previous map
         mapInstanceRef.current = null;
+        
+        // Clear container
         if (mapRef.current) {
           mapRef.current.innerHTML = '';
         }
       }
 
+      console.log('Initializing map with container:', mapRef.current);
+      
       const mapOptions = {
-        center: [20.5937, 78.9629],
+        center: [20.5937, 78.9629], // Center of India
         zoom: 5,
         zoomControl: true,
         hybrid: true
       };
 
-      // Fix: Pass the element as first arg and options as second arg
+      // Create new map instance
       mapInstanceRef.current = new window.MapmyIndia.Map(mapRef.current, mapOptions);
       
-      updateMapView();
+      // Add event listener to confirm map is loaded
+      if (mapInstanceRef.current) {
+        console.log('Map created successfully');
+        setMapInitialized(true);
+        setMapError(null);
+        
+        // Update map view after initialization
+        setTimeout(() => {
+          updateMapView();
+        }, 500);
+      } else {
+        console.error('Map instantiation failed');
+        setMapError('Failed to initialize map. Please refresh the page.');
+      }
     } catch (error) {
       console.error('Error initializing MapMyIndia map:', error);
+      setMapError('Error initializing map. Please refresh the page.');
     }
   };
 
   const updateMapView = () => {
-    if (!mapInstanceRef.current) return;
-
-    // Clear previous markers if methods exist
-    if (typeof mapInstanceRef.current.removeAllMarkers === 'function') {
-      mapInstanceRef.current.removeAllMarkers();
-    }
-    
-    if (typeof mapInstanceRef.current.removeAllPolygons === 'function') {
-      mapInstanceRef.current.removeAllPolygons();
+    if (!mapInstanceRef.current || !mapInitialized) {
+      console.warn('Map not initialized yet, cannot update view');
+      return;
     }
 
-    if (mapView === 'bubble') {
-      stateData.forEach((state) => {
-        if (!state.coordinates) return;
+    try {
+      // Clear previous markers if methods exist
+      const map = mapInstanceRef.current;
+      
+      // Clear previous elements from map
+      // Note: Actual implementation depends on MapMyIndia's API
+      // Here we're trying to handle if these methods don't exist
+      try {
+        if (typeof map.removeAllMarkers === 'function') {
+          map.removeAllMarkers();
+        }
+        
+        if (typeof map.removeAllPolygons === 'function') {
+          map.removeAllPolygons();
+        }
+      } catch (e) {
+        console.warn('Could not clear previous map elements:', e);
+      }
 
-        const resolutionRate = state.resolved / state.incidents;
-        const radius = Math.sqrt(state.incidents) / 20;
-        const isSelected = selectedState?.state === state.state;
+      if (mapView === 'bubble') {
+        stateData.forEach((state) => {
+          if (!state.coordinates) return;
 
-        const markerOptions = {
-          position: state.coordinates,
-          icon: {
-            url: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${radius * 2}px" height="${radius * 2}px"><circle cx="50" cy="50" r="40" fill="rgba(${Math.floor(255 * (1 - resolutionRate))}, ${Math.floor(255 * resolutionRate)}, 100, 0.7)" stroke="${isSelected ? 'white' : 'none'}" stroke-width="${isSelected ? '4' : '0'}"/></svg>`,
-            size: { width: radius * 2, height: radius * 2 },
-            anchor: { x: radius, y: radius }
-          },
-          popupOptions: {
-            content: `<b>${state.state}</b><br>Incidents: ${state.incidents}<br>Resolved: ${state.resolved}`
-          },
-          map: mapInstanceRef.current
-        };
+          const resolutionRate = state.resolved / state.incidents;
+          const radius = Math.sqrt(state.incidents) / 20;
+          const isSelected = selectedState?.state === state.state;
 
-        try {
-          const marker = new window.MapmyIndia.Marker(markerOptions);
-          
-          // Safer event handling approach
-          if (typeof marker.addListener === 'function') {
-            marker.addListener('click', () => {
-              setSelectedState(state);
-            });
+          try {
+            const markerOptions = {
+              position: state.coordinates,
+              icon: {
+                url: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${radius * 2}px" height="${radius * 2}px"><circle cx="50" cy="50" r="40" fill="rgba(${Math.floor(255 * (1 - resolutionRate))}, ${Math.floor(255 * resolutionRate)}, 100, 0.7)" stroke="${isSelected ? 'white' : 'none'}" stroke-width="${isSelected ? '4' : '0'}"/></svg>`,
+                size: { width: radius * 2, height: radius * 2 },
+                anchor: { x: radius, y: radius }
+              },
+              popupOptions: {
+                content: `<b>${state.state}</b><br>Incidents: ${state.incidents}<br>Resolved: ${state.resolved}`
+              },
+              map: mapInstanceRef.current
+            };
+
+            const marker = new window.MapmyIndia.Marker(markerOptions);
+            
+            // Try to attach click handler if available
+            try {
+              if (marker && typeof marker.addListener === 'function') {
+                marker.addListener('click', () => {
+                  setSelectedState(state);
+                });
+              }
+            } catch (e) {
+              console.warn('Could not add marker click listener:', e);
+            }
+          } catch (markerError) {
+            console.error('Error creating marker:', markerError);
           }
-        } catch (error) {
-          console.error('Error creating marker:', error);
-        }
-      });
-    } else {
-      stateData.forEach((state) => {
-        if (!state.coordinates) return;
-        
-        const intensity = Math.min(state.incidents / 5000, 1);
-        const radius = Math.sqrt(state.incidents) / 10 * 30000;
-        
-        try {
-          const circleCoords = generateCirclePoints(state.coordinates, radius, 20);
+        });
+      } else {
+        // Heatmap view
+        stateData.forEach((state) => {
+          if (!state.coordinates) return;
           
-          const polygonOptions = {
-            paths: [circleCoords],
-            fillColor: `rgba(255, 0, 0, ${intensity * 0.5})`,
-            fillOpacity: 0.5,
-            strokeColor: 'rgba(255, 0, 0, 0.1)',
-            strokeOpacity: 0.1,
-            strokeWeight: 1,
-            map: mapInstanceRef.current
-          };
+          const intensity = Math.min(state.incidents / 5000, 1);
+          const radius = Math.sqrt(state.incidents) / 10 * 30000;
           
-          new window.MapmyIndia.Polygon(polygonOptions);
-        } catch (error) {
-          console.error('Error creating heatmap polygon:', error);
-        }
-      });
+          try {
+            const circleCoords = generateCirclePoints(state.coordinates, radius, 20);
+            
+            const polygonOptions = {
+              paths: [circleCoords],
+              fillColor: `rgba(255, 0, 0, ${intensity * 0.5})`,
+              fillOpacity: 0.5,
+              strokeColor: 'rgba(255, 0, 0, 0.1)',
+              strokeOpacity: 0.1,
+              strokeWeight: 1,
+              map: mapInstanceRef.current
+            };
+            
+            new window.MapmyIndia.Polygon(polygonOptions);
+          } catch (polygonError) {
+            console.error('Error creating heatmap polygon:', polygonError);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error updating map view:', error);
     }
   };
 
@@ -228,6 +296,11 @@ const ActivityMap = () => {
   const totalIncidents = stateData.reduce((sum, state) => sum + state.incidents, 0);
   const totalResolved = stateData.reduce((sum, state) => sum + state.resolved, 0);
   const resolvedPercentage = Math.round((totalResolved / totalIncidents) * 100);
+
+  // Reset map handler
+  const handleResetMap = () => {
+    initializeMap();
+  };
 
   return (
     <section id="activity-map" className="py-24 px-6 bg-gradient-to-b from-background to-secondary/30 dark:from-background dark:to-gray-900/30">
@@ -345,7 +418,23 @@ const ActivityMap = () => {
           </div>
           
           <div className="lg:col-span-3 futuristic-card !p-0 relative h-[500px]">
-            <div ref={mapRef} className="absolute inset-0 w-full h-full" />
+            {/* Map container with improved visibility */}
+            <div 
+              ref={mapRef} 
+              className="absolute inset-0 w-full h-full rounded-lg overflow-hidden" 
+              id="map-container"
+              style={{ background: '#f1f5f9' }}
+            />
+            
+            {mapError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-sm rounded-lg">
+                <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-md text-center">
+                  <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+                  <p className="text-red-600 dark:text-red-400 mb-4">{mapError}</p>
+                  <Button onClick={handleResetMap}>Reload Map</Button>
+                </div>
+              </div>
+            )}
             
             {selectedState && (
               <div className="absolute bottom-4 right-4 futuristic-card !p-4 max-w-xs w-full mx-auto animate-fade-in bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm">
@@ -375,6 +464,18 @@ const ActivityMap = () => {
             
             <div className="absolute top-4 left-4 bg-white/80 dark:bg-black/80 backdrop-blur-sm rounded p-2 z-10">
               <p className="text-xs font-mono">MapMyIndia Interactive Map</p>
+            </div>
+            
+            {/* Map controls */}
+            <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="bg-white/80 dark:bg-black/80 backdrop-blur-sm"
+                onClick={handleResetMap}
+              >
+                <Undo className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </div>
