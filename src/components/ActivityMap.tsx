@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { MapPin, AlertTriangle, TrendingUp, Check, ZoomIn, ZoomOut, Undo } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
@@ -44,15 +43,6 @@ const stateData: CrimeData[] = [
   { state: 'Sikkim', incidents: 98, resolved: 59, trend: 'down', topType: 'Financial Fraud', coordinates: [88.5122, 27.5330] },
 ];
 
-// India map outline coordinates (simplified)
-const indiaOutline = [
-  [77.0, 35.0], [79.0, 35.0], [84.0, 35.0], [88.0, 35.0], 
-  [92.0, 28.0], [93.0, 25.0], [94.0, 23.0], [94.0, 17.0], 
-  [93.0, 13.0], [85.0, 8.0], [79.0, 8.0], [73.0, 8.0], 
-  [69.0, 10.0], [68.0, 15.0], [68.0, 20.0], [69.0, 24.0], 
-  [70.0, 27.0], [72.0, 32.0], [75.0, 34.0], [77.0, 35.0]
-];
-
 const formatNumber = (num: number): string => {
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 };
@@ -66,11 +56,9 @@ const ActivityMap = () => {
   const [mapView, setMapView] = useState<'heatmap' | 'bubble'>('heatmap');
   const [zoomLevel, setZoomLevel] = useState(1.0);
 
-  // Sort data based on current sort criteria
   const sortedStateData = [...stateData].sort((a, b) => b[sortBy] - a[sortBy]);
 
   useEffect(() => {
-    // Observer for animation when section comes into view
     const observerOptions = {
       threshold: 0.1
     };
@@ -102,16 +90,12 @@ const ActivityMap = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas dimensions
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
 
-    // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Map coordinates to canvas
     const mapCoordinatesToCanvas = (lon: number, lat: number) => {
-      // These are approximate mappings for India
       const minLon = 68;
       const maxLon = 97;
       const minLat = 8;
@@ -120,7 +104,6 @@ const ActivityMap = () => {
       const x = ((lon - minLon) / (maxLon - minLon)) * canvas.width * zoomLevel;
       const y = canvas.height - ((lat - minLat) / (maxLat - minLat)) * canvas.height * zoomLevel;
       
-      // Apply centering for zoomed view
       const offsetX = canvas.width * (1 - zoomLevel) / 2;
       const offsetY = canvas.height * (1 - zoomLevel) / 2;
       
@@ -130,7 +113,6 @@ const ActivityMap = () => {
       };
     };
 
-    // Draw India map outline
     ctx.beginPath();
     indiaOutline.forEach((coord, index) => {
       const { x, y } = mapCoordinatesToCanvas(coord[0], coord[1]);
@@ -141,22 +123,21 @@ const ActivityMap = () => {
       }
     });
     ctx.closePath();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
     ctx.lineWidth = 2;
     ctx.stroke();
 
     if (mapView === 'heatmap') {
-      // Draw heatmap
       stateData.forEach(state => {
         if (!state.coordinates) return;
         
         const { x, y } = mapCoordinatesToCanvas(state.coordinates[0], state.coordinates[1]);
         
-        // Create radial gradient based on incident count
         const radius = Math.sqrt(state.incidents) / 15;
         const grd = ctx.createRadialGradient(x, y, 0, x, y, radius * 30);
         
-        // Set gradient colors based on incident count
         const intensity = Math.min(state.incidents / 5000, 1);
         grd.addColorStop(0, `rgba(255, 0, 0, ${intensity * 0.7})`);
         grd.addColorStop(1, 'rgba(255, 0, 0, 0)');
@@ -167,34 +148,27 @@ const ActivityMap = () => {
         ctx.fill();
       });
     } else if (mapView === 'bubble') {
-      // Draw bubbles
       stateData.forEach(state => {
         if (!state.coordinates) return;
         
         const { x, y } = mapCoordinatesToCanvas(state.coordinates[0], state.coordinates[1]);
         const radius = Math.sqrt(state.incidents) / 10;
         
-        // Resolution rate affects bubble color
         const resolutionRate = state.resolved / state.incidents;
         const r = Math.floor(255 * (1 - resolutionRate));
         const g = Math.floor(255 * resolutionRate);
         const b = 100;
         
-        // Draw bubble
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.7)`;
         ctx.fill();
         
-        // Draw state name for larger bubbles
-        if (radius > 5) {
-          ctx.fillStyle = '#fff';
-          ctx.font = '10px JetBrains Mono';
-          ctx.textAlign = 'center';
-          ctx.fillText(state.state, x, y + radius + 12);
-        }
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px JetBrains Mono';
+        ctx.textAlign = 'center';
+        ctx.fillText(state.state, x, y + radius + 12);
         
-        // Highlight selected state
         if (selectedState && state.state === selectedState.state) {
           ctx.beginPath();
           ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
@@ -204,7 +178,6 @@ const ActivityMap = () => {
         }
       });
     }
-
   }, [mapVisible, selectedState, mapView, zoomLevel]);
 
   const handleZoomIn = () => {
@@ -219,7 +192,6 @@ const ActivityMap = () => {
     setZoomLevel(1.0);
   };
 
-  // Calculate totals for summary stats
   const totalIncidents = stateData.reduce((sum, state) => sum + state.incidents, 0);
   const totalResolved = stateData.reduce((sum, state) => sum + state.resolved, 0);
   const resolvedPercentage = Math.round((totalResolved / totalIncidents) * 100);
@@ -351,14 +323,12 @@ const ActivityMap = () => {
                   const x = e.clientX - rect.left;
                   const y = e.clientY - rect.top;
                   
-                  // Find the closest state to the click
                   let closestState = null;
                   let minDistance = Infinity;
                   
                   stateData.forEach(state => {
                     if (!state.coordinates) return;
                     
-                    // Map coordinates to canvas position with zoom
                     const minLon = 68;
                     const maxLon = 97;
                     const minLat = 8;
@@ -370,7 +340,6 @@ const ActivityMap = () => {
                     const pointX = ((state.coordinates[0] - minLon) / (maxLon - minLon)) * canvasWidth * zoomLevel;
                     const pointY = canvasHeight - ((state.coordinates[1] - minLat) / (maxLat - minLat)) * canvasHeight * zoomLevel;
                     
-                    // Apply centering for zoomed view
                     const offsetX = canvasWidth * (1 - zoomLevel) / 2;
                     const offsetY = canvasHeight * (1 - zoomLevel) / 2;
                     
@@ -385,7 +354,6 @@ const ActivityMap = () => {
                     }
                   });
                   
-                  // Only select if within a reasonable distance (adjust based on zoom)
                   const clickRadius = 30 * (1 / zoomLevel);
                   if (minDistance < clickRadius && closestState) {
                     setSelectedState(closestState);
@@ -397,7 +365,6 @@ const ActivityMap = () => {
                 Interactive India Map
               </div>
               
-              {/* Zoom controls */}
               <div className="absolute top-4 right-4 flex flex-col space-y-2">
                 <Button 
                   variant="outline" 

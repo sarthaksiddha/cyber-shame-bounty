@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Shield, Menu, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Header = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -30,36 +31,36 @@ const Header = () => {
     >
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
-          <a 
-            href="#" 
+          <Link 
+            to="/" 
             className="flex items-center space-x-2 group"
           >
             <Shield className="h-7 w-7 text-primary transition-all duration-300 ease-in-out group-hover:scale-110" />
             <span className="font-semibold text-xl tracking-tight">CyberShield India</span>
-          </a>
+          </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-10">
-            <a 
-              href="#bounty" 
+            <Link 
+              to="/bounty-program" 
               className="transition-all duration-200 hover:text-primary relative after:absolute after:bottom-0 after:left-0 after:bg-primary after:h-0.5 after:w-0 hover:after:w-full after:transition-all after:duration-300"
             >
               Bounty Program
-            </a>
+            </Link>
             <a 
-              href="#hall-of-shame" 
+              href="/#hall-of-shame" 
               className="transition-all duration-200 hover:text-primary relative after:absolute after:bottom-0 after:left-0 after:bg-primary after:h-0.5 after:w-0 hover:after:w-full after:transition-all after:duration-300"
             >
               Hall of Shame
             </a>
             <a 
-              href="#resources" 
+              href="/#resources" 
               className="transition-all duration-200 hover:text-primary relative after:absolute after:bottom-0 after:left-0 after:bg-primary after:h-0.5 after:w-0 hover:after:w-full after:transition-all after:duration-300"
             >
               Resources
             </a>
             <a 
-              href="#activity-map" 
+              href="/#activity-map" 
               className="transition-all duration-200 hover:text-primary relative after:absolute after:bottom-0 after:left-0 after:bg-primary after:h-0.5 after:w-0 hover:after:w-full after:transition-all after:duration-300"
             >
               Activity Map
@@ -86,29 +87,29 @@ const Header = () => {
           isMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         } md:hidden`}
       >
-        <a 
-          href="#bounty" 
+        <Link 
+          to="/bounty-program" 
           className="text-2xl font-medium"
           onClick={() => setIsMenuOpen(false)}
         >
           Bounty Program
-        </a>
+        </Link>
         <a 
-          href="#hall-of-shame" 
+          href="/#hall-of-shame" 
           className="text-2xl font-medium"
           onClick={() => setIsMenuOpen(false)}
         >
           Hall of Shame
         </a>
         <a 
-          href="#resources" 
+          href="/#resources" 
           className="text-2xl font-medium"
           onClick={() => setIsMenuOpen(false)}
         >
           Resources
         </a>
         <a 
-          href="#activity-map" 
+          href="/#activity-map" 
           className="text-2xl font-medium"
           onClick={() => setIsMenuOpen(false)}
         >

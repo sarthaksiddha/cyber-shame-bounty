@@ -7,6 +7,7 @@ import Resources from '../components/Resources';
 import ActivityMap from '../components/ActivityMap';
 import Footer from '../components/Footer';
 import { Toaster } from "@/components/ui/toaster";
+import ScamReportDialog from '../components/ScamReportDialog';
 
 const Index = () => {
   // Smooth scroll to section when clicking on anchor links
@@ -47,6 +48,7 @@ const Index = () => {
       </main>
       <Footer />
       <Toaster />
+      <ScamReportDialog />
     </div>
   );
 };
