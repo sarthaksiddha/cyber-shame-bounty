@@ -4,8 +4,11 @@ declare global {
   interface Window {
     MapmyIndia: {
       Map: new (element: HTMLElement, options: any) => any;
-      Marker: new (options: any) => any;
-      Polygon?: new (options: any) => any; // Make Polygon optional since it might not be available
+      // Using proper MapmyIndia map marker API structure
+      map: {
+        Marker: new (options: any) => any;
+        Polygon?: new (options: any) => any; // Make Polygon optional
+      };
     };
   }
 }

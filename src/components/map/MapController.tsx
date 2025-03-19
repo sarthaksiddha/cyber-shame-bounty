@@ -23,6 +23,7 @@ const MapController: React.FC<MapControllerProps> = ({
   const [mapError, setMapError] = useState<string | null>(null);
   const [mapVisible, setMapVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [apiVersion, setApiVersion] = useState<'legacy' | 'modern'>('modern');
 
   // Initialize map when component mounts or becomes visible
   useEffect(() => {
@@ -87,6 +88,58 @@ const MapController: React.FC<MapControllerProps> = ({
     }
   }, [mapView, selectedState, mapVisible, mapInitialized]);
 
+  const detectApiVersion = () => {
+    // Check if we're using modern or legacy API
+    if (window.MapmyIndia && window.MapmyIndia.map && typeof window.MapmyIndia.map.Marker === 'function') {
+      console.log('Using modern MapmyIndia API');
+      setApiVersion('modern');
+      return 'modern';
+    } else if (window.MapmyIndia && typeof window.MapmyIndia.Marker === 'function') {
+      console.log('Using legacy MapmyIndia API');
+      setApiVersion('legacy');
+      return 'legacy';
+    } else {
+      console.error('Cannot detect MapmyIndia API version');
+      return null;
+    }
+  };
+
+  const createMarker = (state: CrimeData, version: 'modern' | 'legacy' | null) => {
+    if (!state.coordinates) return null;
+    
+    try {
+      const resolutionRate = state.resolved / state.incidents;
+      const radius = Math.sqrt(state.incidents) / 20;
+      const isSelected = selectedState?.state === state.state;
+      
+      const markerOptions = {
+        position: state.coordinates,
+        icon: {
+          url: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${radius * 2}px" height="${radius * 2}px"><circle cx="50" cy="50" r="40" fill="rgba(${Math.floor(255 * (1 - resolutionRate))}, ${Math.floor(255 * resolutionRate)}, 100, 0.7)" stroke="${isSelected ? 'white' : 'none'}" stroke-width="${isSelected ? '4' : '0'}"/></svg>`,
+          size: { width: radius * 2, height: radius * 2 },
+          anchor: { x: radius, y: radius }
+        },
+        popupOptions: {
+          content: `<b>${state.state}</b><br>Incidents: ${state.incidents}<br>Resolved: ${state.resolved}`
+        },
+        map: mapInstanceRef.current
+      };
+
+      // Create marker based on API version
+      let marker = null;
+      if (version === 'modern' && window.MapmyIndia.map) {
+        marker = new window.MapmyIndia.map.Marker(markerOptions);
+      } else if (version === 'legacy') {
+        marker = new window.MapmyIndia.Marker(markerOptions);
+      }
+      
+      return marker;
+    } catch (error) {
+      console.error('Error creating marker:', error);
+      return null;
+    }
+  };
+
   const initializeMap = () => {
     setIsLoading(true);
     
@@ -129,6 +182,9 @@ const MapController: React.FC<MapControllerProps> = ({
         setMapError(null);
         setMapVisible(true);
         
+        // Detect API version
+        detectApiVersion();
+        
         // Add a slight delay to ensure map is fully rendered before updating view
         setTimeout(() => {
           updateMapView();
@@ -163,10 +219,13 @@ const MapController: React.FC<MapControllerProps> = ({
           mapInstanceRef.current.removeAllPolygons();
         }
 
+        // Detect API version before rendering
+        const version = detectApiVersion();
+        
         if (mapView === 'bubble') {
-          renderBubbleView(stateData);
+          renderBubbleView(stateData, version);
         } else {
-          renderHeatmapView(stateData);
+          renderHeatmapView(stateData, version);
         }
       } catch (error) {
         console.error('Error updating map view:', error);
@@ -175,30 +234,22 @@ const MapController: React.FC<MapControllerProps> = ({
   };
 
   // Render bubble view (circles for each state)
-  const renderBubbleView = (stateData: CrimeData[]) => {
+  const renderBubbleView = (stateData: CrimeData[], version: 'modern' | 'legacy' | null) => {
+    if (!version) {
+      console.error('Cannot detect MapmyIndia API version');
+      setMapError('Map API version not detected. Please refresh the page.');
+      return;
+    }
+    
+    let markersCreated = 0;
+    
     stateData.forEach((state) => {
       if (!state.coordinates) return;
-
-      const resolutionRate = state.resolved / state.incidents;
-      const radius = Math.sqrt(state.incidents) / 20;
-      const isSelected = selectedState?.state === state.state;
-
-      try {
-        const markerOptions = {
-          position: state.coordinates,
-          icon: {
-            url: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${radius * 2}px" height="${radius * 2}px"><circle cx="50" cy="50" r="40" fill="rgba(${Math.floor(255 * (1 - resolutionRate))}, ${Math.floor(255 * resolutionRate)}, 100, 0.7)" stroke="${isSelected ? 'white' : 'none'}" stroke-width="${isSelected ? '4' : '0'}"/></svg>`,
-            size: { width: radius * 2, height: radius * 2 },
-            anchor: { x: radius, y: radius }
-          },
-          popupOptions: {
-            content: `<b>${state.state}</b><br>Incidents: ${state.incidents}<br>Resolved: ${state.resolved}`
-          },
-          map: mapInstanceRef.current
-        };
-
-        const marker = new window.MapmyIndia.Marker(markerOptions);
-        
+      
+      const marker = createMarker(state, version);
+      
+      if (marker) {
+        markersCreated++;
         try {
           if (marker && typeof marker.addListener === 'function') {
             marker.addListener('click', () => {
@@ -208,16 +259,33 @@ const MapController: React.FC<MapControllerProps> = ({
         } catch (e) {
           console.warn('Could not add marker click listener:', e);
         }
-      } catch (markerError) {
-        console.error('Error creating marker:', markerError);
       }
     });
+    
+    console.log(`Created ${markersCreated} markers with API version: ${version}`);
+    
+    if (markersCreated === 0) {
+      toast({
+        title: "Warning",
+        description: "Failed to display map markers. API might be incompatible.",
+        variant: "default"
+      });
+    }
   };
 
   // Render heatmap view (intensity polygons)
-  const renderHeatmapView = (stateData: CrimeData[]) => {
+  const renderHeatmapView = (stateData: CrimeData[], version: 'modern' | 'legacy' | null) => {
+    if (!version) {
+      renderBubbleView(stateData, version);
+      return;
+    }
+    
     // Check if Polygon constructor is available
-    if (!window.MapmyIndia.Polygon) {
+    const hasPolygon = 
+      (version === 'modern' && window.MapmyIndia.map && window.MapmyIndia.map.Polygon) ||
+      (version === 'legacy' && window.MapmyIndia.Polygon);
+    
+    if (!hasPolygon) {
       console.warn('MapMyIndia Polygon constructor not available, falling back to bubble view');
       toast({
         title: "Heatmap view unavailable",
@@ -225,10 +293,12 @@ const MapController: React.FC<MapControllerProps> = ({
         variant: "default"
       });
       // Fall back to bubble view
-      renderBubbleView(stateData);
+      renderBubbleView(stateData, version);
       return;
     }
 
+    let polygonsCreated = 0;
+    
     stateData.forEach((state) => {
       if (!state.coordinates) return;
       
@@ -248,11 +318,23 @@ const MapController: React.FC<MapControllerProps> = ({
           map: mapInstanceRef.current
         };
         
-        new window.MapmyIndia.Polygon(polygonOptions);
+        if (version === 'modern' && window.MapmyIndia.map && window.MapmyIndia.map.Polygon) {
+          new window.MapmyIndia.map.Polygon(polygonOptions);
+          polygonsCreated++;
+        } else if (version === 'legacy' && window.MapmyIndia.Polygon) {
+          new window.MapmyIndia.Polygon(polygonOptions);
+          polygonsCreated++;
+        }
       } catch (polygonError) {
         console.error('Error creating heatmap polygon:', polygonError);
       }
     });
+    
+    console.log(`Created ${polygonsCreated} polygons with API version: ${version}`);
+    
+    if (polygonsCreated === 0) {
+      renderBubbleView(stateData, version);
+    }
   };
 
   const handleResetMap = () => {
@@ -316,6 +398,7 @@ const MapController: React.FC<MapControllerProps> = ({
       
       <div className="absolute top-4 left-4 bg-white/80 dark:bg-black/80 backdrop-blur-sm rounded p-2 z-10">
         <p className="text-xs font-mono">MapMyIndia Interactive Map</p>
+        <p className="text-xs font-mono opacity-50">API: {apiVersion}</p>
       </div>
       
       <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
@@ -333,3 +416,4 @@ const MapController: React.FC<MapControllerProps> = ({
 };
 
 export default MapController;
+
