@@ -4,7 +4,13 @@ import { AlertTriangle, Undo } from 'lucide-react';
 import { Button } from '../ui/button';
 import { CrimeData } from '@/types/mapTypes';
 import { generateCirclePoints, formatNumber } from '@/utils/mapUtils';
-import { detectApiVersion, createMarker, createPolygon, isPolygonSupported } from '@/utils/mapApiUtils';
+import { 
+  detectApiVersion, 
+  createMarker, 
+  createPolygon, 
+  isPolygonSupported,
+  initializeMapInstance 
+} from '@/utils/mapApiUtils';
 import { toast } from '../ui/use-toast';
 import { Alert, AlertTitle, AlertDescription } from "../ui/alert";
 
@@ -25,8 +31,9 @@ const MapController: React.FC<MapControllerProps> = ({
   const [mapError, setMapError] = useState<string | null>(null);
   const [mapVisible, setMapVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [apiVersion, setApiVersion] = useState<'legacy' | 'modern' | 'leaflet' | null>(null);
+  const [apiVersion, setApiVersion] = useState<'legacy' | 'modern' | 'leaflet' | 'mappls' | 'maplibre' | null>(null);
   const [markersCreated, setMarkersCreated] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Function to initialize the map
   const initializeMap = () => {
@@ -57,14 +64,8 @@ const MapController: React.FC<MapControllerProps> = ({
 
       console.log('Initializing map with container:', mapRef.current);
       
-      const mapOptions = {
-        center: [20.5937, 78.9629],
-        zoom: 5,
-        zoomControl: true,
-        hybrid: true
-      };
-
-      mapInstanceRef.current = new window.MapmyIndia.Map(mapRef.current, mapOptions);
+      // Use our enhanced initializer
+      mapInstanceRef.current = initializeMapInstance(mapRef.current);
       
       if (mapInstanceRef.current) {
         console.log('Map created successfully');
@@ -83,8 +84,45 @@ const MapController: React.FC<MapControllerProps> = ({
         }, 500);
       } else {
         console.error('Map instantiation failed');
-        setMapError('Failed to initialize map. Please refresh the page.');
-        setIsLoading(false);
+        // Try again with a different method if we haven't tried too many times
+        if (retryCount < 3) {
+          setRetryCount(prev => prev + 1);
+          console.log(`Retry ${retryCount + 1} of 3...`);
+          
+          // Different initialization approach
+          setTimeout(() => {
+            if (mapRef.current) {
+              // Ensure we have an ID
+              if (!mapRef.current.id) {
+                mapRef.current.id = 'map-container-' + Date.now();
+              }
+              
+              try {
+                if (window.MapmyIndia.L) {
+                  // Try Leaflet method
+                  mapInstanceRef.current = window.MapmyIndia.L.map(mapRef.current.id, {
+                    center: [20.5937, 78.9629],
+                    zoom: 5
+                  });
+                  
+                  setMapInitialized(true);
+                  setMapError(null);
+                  setApiVersion('leaflet');
+                  updateMapView();
+                  setIsLoading(false);
+                } else {
+                  throw new Error('Fallback initialization also failed');
+                }
+              } catch (retryError) {
+                setMapError(`Failed to initialize map after multiple attempts. Please refresh the page.`);
+                setIsLoading(false);
+              }
+            }
+          }, 1000);
+        } else {
+          setMapError('Failed to initialize map. Please refresh the page.');
+          setIsLoading(false);
+        }
       }
     } catch (error) {
       console.error('Error initializing MapMyIndia map:', error);
@@ -182,25 +220,30 @@ const MapController: React.FC<MapControllerProps> = ({
 
       const marker = createMarker(markerOptions, mapInstanceRef.current);
       
-      if (marker && typeof marker.addListener === 'function') {
+      // Try to add click listener - different methods for different API versions
+      if (marker) {
         try {
-          marker.addListener('click', () => {
-            setSelectedState(state);
-          });
-        } catch (e) {
-          console.warn('Could not add marker click listener:', e);
-          // Try alternative method for Leaflet
-          if (marker.on) {
+          // Method 1: Modern API with addListener
+          if (typeof marker.addListener === 'function') {
+            marker.addListener('click', () => {
+              setSelectedState(state);
+            });
+          } 
+          // Method 2: Leaflet API with on
+          else if (marker.on) {
             marker.on('click', () => {
               setSelectedState(state);
             });
           }
+          // Method 3: Try setting onclick directly
+          else if (marker.element) {
+            marker.element.onclick = () => {
+              setSelectedState(state);
+            };
+          }
+        } catch (e) {
+          console.warn('Could not add marker click listener:', e);
         }
-      } else if (marker && marker.on) {
-        // Leaflet API
-        marker.on('click', () => {
-          setSelectedState(state);
-        });
       }
       
       return marker;
@@ -218,25 +261,24 @@ const MapController: React.FC<MapControllerProps> = ({
       }
 
       try {
-        // Clean up existing markers and polygons - API specific
-        if (typeof mapInstanceRef.current.removeAllMarkers === 'function') {
-          mapInstanceRef.current.removeAllMarkers();
-        }
-        
-        if (typeof mapInstanceRef.current.removeAllPolygons === 'function') {
-          mapInstanceRef.current.removeAllPolygons();
-        }
-        
-        // For Leaflet, we would need to handle this differently
-        if (apiVersion === 'leaflet') {
-          // Leaflet typically clears by removing from map
-          // We don't have previous references so we'll rely on redrawing
-        }
+        // Clean up existing markers and polygons 
+        // Different APIs have different cleanup methods
+        // We'll let the map reinitialize for simplicity
         
         if (mapView === 'bubble') {
           renderBubbleView(stateData);
         } else {
-          renderHeatmapView(stateData);
+          if (isPolygonSupported()) {
+            renderHeatmapView(stateData);
+          } else {
+            console.warn('Polygon not supported in this API version. Falling back to bubble view.');
+            toast({
+              title: "Heatmap view unavailable",
+              description: "Falling back to bubble view due to API limitations",
+              variant: "default"
+            });
+            renderBubbleView(stateData);
+          }
         }
       } catch (error) {
         console.error('Error updating map view:', error);
@@ -273,19 +315,6 @@ const MapController: React.FC<MapControllerProps> = ({
 
   // Render heatmap view (intensity polygons)
   const renderHeatmapView = (stateData: CrimeData[]) => {
-    // Check if Polygon constructor is available
-    if (!isPolygonSupported()) {
-      console.warn('MapMyIndia Polygon constructor not available, falling back to bubble view');
-      toast({
-        title: "Heatmap view unavailable",
-        description: "Falling back to bubble view due to API limitations",
-        variant: "default"
-      });
-      // Fall back to bubble view
-      renderBubbleView(stateData);
-      return;
-    }
-
     let polygonsCreated = 0;
     let markersCreated = 0;
     
@@ -331,6 +360,7 @@ const MapController: React.FC<MapControllerProps> = ({
   const handleResetMap = () => {
     setIsLoading(true);
     setMapInitialized(false);
+    setRetryCount(0);
     initializeMap();
   };
 
