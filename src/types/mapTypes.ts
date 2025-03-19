@@ -4,11 +4,11 @@ declare global {
   interface Window {
     MapmyIndia: {
       Map: new (element: HTMLElement, options: any) => any;
-      map: {
-        Marker: new (options: any) => any;
-        Polygon?: new (options: any) => any; // Make Polygon optional
+      map?: {
+        Marker?: new (options: any) => any;
+        Polygon?: new (options: any) => any;
       };
-      // Add direct access to these classes for legacy API support
+      // For legacy API support
       Marker?: new (options: any) => any;
       Polygon?: new (options: any) => any;
     };

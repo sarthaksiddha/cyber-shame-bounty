@@ -4,6 +4,7 @@ import { AlertTriangle, Undo } from 'lucide-react';
 import { Button } from '../ui/button';
 import { CrimeData } from '@/types/mapTypes';
 import { generateCirclePoints, formatNumber } from '@/utils/mapUtils';
+import { detectApiVersion, createMarker, createPolygon, isPolygonSupported } from '@/utils/mapApiUtils';
 import { toast } from '../ui/use-toast';
 
 interface MapControllerProps {
@@ -23,123 +24,9 @@ const MapController: React.FC<MapControllerProps> = ({
   const [mapError, setMapError] = useState<string | null>(null);
   const [mapVisible, setMapVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [apiVersion, setApiVersion] = useState<'legacy' | 'modern'>('modern');
+  const [apiVersion, setApiVersion] = useState<'legacy' | 'modern' | null>(null);
 
-  // Initialize map when component mounts or becomes visible
-  useEffect(() => {
-    const loadMap = () => {
-      if (!mapRef.current) return;
-      
-      // Use a timeout to ensure DOM is ready
-      const timer = setTimeout(() => {
-        if (!mapInitialized && mapRef.current) {
-          initializeMap();
-        }
-      }, 1000);
-      
-      return () => clearTimeout(timer);
-    };
-
-    // Load map immediately and also when window is resized
-    loadMap();
-    
-    // Add resize event listener to re-initialize map if window size changes
-    window.addEventListener('resize', loadMap);
-    
-    return () => {
-      window.removeEventListener('resize', loadMap);
-    };
-  }, [mapRef.current]);
-
-  // Observer to detect when map is in viewport
-  useEffect(() => {
-    const observerOptions = {
-      threshold: 0.1
-    };
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          setMapVisible(true);
-          observer.unobserve(entry.target);
-
-          setTimeout(() => {
-            initializeMap();
-          }, 300);
-        }
-      });
-    }, observerOptions);
-
-    if (mapRef.current) {
-      observer.observe(mapRef.current);
-    }
-
-    return () => {
-      if (mapRef.current) {
-        observer.unobserve(mapRef.current);
-      }
-    };
-  }, []);
-
-  // Update map view when view type or selected state changes
-  useEffect(() => {
-    if (mapVisible && mapInstanceRef.current && mapInitialized) {
-      updateMapView();
-    }
-  }, [mapView, selectedState, mapVisible, mapInitialized]);
-
-  const detectApiVersion = () => {
-    // Check if we're using modern or legacy API
-    if (window.MapmyIndia && window.MapmyIndia.map && typeof window.MapmyIndia.map.Marker === 'function') {
-      console.log('Using modern MapmyIndia API');
-      setApiVersion('modern');
-      return 'modern';
-    } else if (window.MapmyIndia && typeof window.MapmyIndia.Marker === 'function') {
-      console.log('Using legacy MapmyIndia API');
-      setApiVersion('legacy');
-      return 'legacy';
-    } else {
-      console.error('Cannot detect MapmyIndia API version');
-      return null;
-    }
-  };
-
-  const createMarker = (state: CrimeData, version: 'modern' | 'legacy' | null) => {
-    if (!state.coordinates) return null;
-    
-    try {
-      const resolutionRate = state.resolved / state.incidents;
-      const radius = Math.sqrt(state.incidents) / 20;
-      const isSelected = selectedState?.state === state.state;
-      
-      const markerOptions = {
-        position: state.coordinates,
-        icon: {
-          url: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${radius * 2}px" height="${radius * 2}px"><circle cx="50" cy="50" r="40" fill="rgba(${Math.floor(255 * (1 - resolutionRate))}, ${Math.floor(255 * resolutionRate)}, 100, 0.7)" stroke="${isSelected ? 'white' : 'none'}" stroke-width="${isSelected ? '4' : '0'}"/></svg>`,
-          size: { width: radius * 2, height: radius * 2 },
-          anchor: { x: radius, y: radius }
-        },
-        popupOptions: {
-          content: `<b>${state.state}</b><br>Incidents: ${state.incidents}<br>Resolved: ${state.resolved}`
-        },
-        map: mapInstanceRef.current
-      };
-
-      // Create marker based on API version
-      let marker = null;
-      if (version === 'modern' && window.MapmyIndia.map && window.MapmyIndia.map.Marker) {
-        marker = new window.MapmyIndia.map.Marker(markerOptions);
-      } else if (version === 'legacy' && window.MapmyIndia.Marker) {
-        marker = new window.MapmyIndia.Marker(markerOptions);
-      }
-      
-      return marker;
-    } catch (error) {
-      console.error('Error creating marker:', error);
-      return null;
-    }
-  };
-
+  // Function to initialize the map
   const initializeMap = () => {
     setIsLoading(true);
     
@@ -183,7 +70,8 @@ const MapController: React.FC<MapControllerProps> = ({
         setMapVisible(true);
         
         // Detect API version
-        detectApiVersion();
+        const version = detectApiVersion();
+        setApiVersion(version);
         
         // Add a slight delay to ensure map is fully rendered before updating view
         setTimeout(() => {
@@ -197,8 +85,114 @@ const MapController: React.FC<MapControllerProps> = ({
       }
     } catch (error) {
       console.error('Error initializing MapMyIndia map:', error);
-      setMapError('Error initializing map. Please refresh the page.');
+      setMapError(`Error initializing map: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setIsLoading(false);
+    }
+  };
+
+  // Initialize map when component mounts or becomes visible
+  useEffect(() => {
+    const loadMap = () => {
+      if (!mapRef.current || mapInitialized) return;
+      
+      // Use a timeout to ensure DOM is ready
+      const timer = setTimeout(() => {
+        if (!mapInitialized && mapRef.current) {
+          initializeMap();
+        }
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    };
+
+    // Load map immediately and also when window is resized
+    loadMap();
+    
+    // Add resize event listener to re-initialize map if window size changes
+    window.addEventListener('resize', loadMap);
+    
+    return () => {
+      window.removeEventListener('resize', loadMap);
+    };
+  }, [mapRef.current, mapInitialized]);
+
+  // Observer to detect when map is in viewport
+  useEffect(() => {
+    if (mapInitialized) return;
+    
+    const observerOptions = {
+      threshold: 0.1
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && !mapInitialized) {
+          setMapVisible(true);
+          observer.unobserve(entry.target);
+
+          // Short delay to ensure DOM is ready
+          setTimeout(() => {
+            initializeMap();
+          }, 300);
+        }
+      });
+    }, observerOptions);
+
+    if (mapRef.current) {
+      observer.observe(mapRef.current);
+    }
+
+    return () => {
+      if (mapRef.current) {
+        observer.unobserve(mapRef.current);
+      }
+    };
+  }, [mapInitialized]);
+
+  // Update map view when view type or selected state changes
+  useEffect(() => {
+    if (mapVisible && mapInstanceRef.current && mapInitialized) {
+      updateMapView();
+    }
+  }, [mapView, selectedState, mapVisible, mapInitialized]);
+
+  // Function to create marker for a state
+  const createStateMarker = (state: CrimeData) => {
+    if (!state.coordinates || !mapInstanceRef.current) return null;
+    
+    try {
+      const resolutionRate = state.resolved / state.incidents;
+      const radius = Math.sqrt(state.incidents) / 20;
+      const isSelected = selectedState?.state === state.state;
+      
+      const markerOptions = {
+        position: state.coordinates,
+        icon: {
+          url: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${radius * 2}px" height="${radius * 2}px"><circle cx="50" cy="50" r="40" fill="rgba(${Math.floor(255 * (1 - resolutionRate))}, ${Math.floor(255 * resolutionRate)}, 100, 0.7)" stroke="${isSelected ? 'white' : 'none'}" stroke-width="${isSelected ? '4' : '0'}"/></svg>`,
+          size: { width: radius * 2, height: radius * 2 },
+          anchor: { x: radius, y: radius }
+        },
+        popupOptions: {
+          content: `<b>${state.state}</b><br>Incidents: ${state.incidents}<br>Resolved: ${state.resolved}`
+        }
+      };
+
+      const marker = createMarker(markerOptions, mapInstanceRef.current);
+      
+      if (marker && typeof marker.addListener === 'function') {
+        try {
+          marker.addListener('click', () => {
+            setSelectedState(state);
+          });
+        } catch (e) {
+          console.warn('Could not add marker click listener:', e);
+        }
+      }
+      
+      return marker;
+    } catch (error) {
+      console.error('Error creating state marker:', error);
+      return null;
     }
   };
 
@@ -218,51 +212,34 @@ const MapController: React.FC<MapControllerProps> = ({
         if (typeof mapInstanceRef.current.removeAllPolygons === 'function') {
           mapInstanceRef.current.removeAllPolygons();
         }
-
-        // Detect API version before rendering
-        const version = detectApiVersion();
         
         if (mapView === 'bubble') {
-          renderBubbleView(stateData, version);
+          renderBubbleView(stateData);
         } else {
-          renderHeatmapView(stateData, version);
+          renderHeatmapView(stateData);
         }
       } catch (error) {
         console.error('Error updating map view:', error);
+        // Fallback to bubble view if there's an error
+        if (mapView === 'heatmap') {
+          renderBubbleView(stateData);
+        }
       }
     });
   };
 
   // Render bubble view (circles for each state)
-  const renderBubbleView = (stateData: CrimeData[], version: 'modern' | 'legacy' | null) => {
-    if (!version) {
-      console.error('Cannot detect MapmyIndia API version');
-      setMapError('Map API version not detected. Please refresh the page.');
-      return;
-    }
-    
+  const renderBubbleView = (stateData: CrimeData[]) => {
     let markersCreated = 0;
     
     stateData.forEach((state) => {
       if (!state.coordinates) return;
       
-      const marker = createMarker(state, version);
-      
-      if (marker) {
-        markersCreated++;
-        try {
-          if (marker && typeof marker.addListener === 'function') {
-            marker.addListener('click', () => {
-              setSelectedState(state);
-            });
-          }
-        } catch (e) {
-          console.warn('Could not add marker click listener:', e);
-        }
-      }
+      const marker = createStateMarker(state);
+      if (marker) markersCreated++;
     });
     
-    console.log(`Created ${markersCreated} markers with API version: ${version}`);
+    console.log(`Created ${markersCreated} markers with API version: ${apiVersion || 'unknown'}`);
     
     if (markersCreated === 0) {
       toast({
@@ -274,18 +251,9 @@ const MapController: React.FC<MapControllerProps> = ({
   };
 
   // Render heatmap view (intensity polygons)
-  const renderHeatmapView = (stateData: CrimeData[], version: 'modern' | 'legacy' | null) => {
-    if (!version) {
-      renderBubbleView(stateData, version);
-      return;
-    }
-    
+  const renderHeatmapView = (stateData: CrimeData[]) => {
     // Check if Polygon constructor is available
-    const hasPolygon = 
-      (version === 'modern' && window.MapmyIndia.map && window.MapmyIndia.map.Polygon) ||
-      (version === 'legacy' && window.MapmyIndia.Polygon);
-    
-    if (!hasPolygon) {
+    if (!isPolygonSupported()) {
       console.warn('MapMyIndia Polygon constructor not available, falling back to bubble view');
       toast({
         title: "Heatmap view unavailable",
@@ -293,14 +261,14 @@ const MapController: React.FC<MapControllerProps> = ({
         variant: "default"
       });
       // Fall back to bubble view
-      renderBubbleView(stateData, version);
+      renderBubbleView(stateData);
       return;
     }
 
     let polygonsCreated = 0;
     
     stateData.forEach((state) => {
-      if (!state.coordinates) return;
+      if (!state.coordinates || !mapInstanceRef.current) return;
       
       const intensity = Math.min(state.incidents / 5000, 1);
       const radius = Math.sqrt(state.incidents) / 10 * 30000;
@@ -314,31 +282,31 @@ const MapController: React.FC<MapControllerProps> = ({
           fillOpacity: 0.5,
           strokeColor: 'rgba(255, 0, 0, 0.1)',
           strokeOpacity: 0.1,
-          strokeWeight: 1,
-          map: mapInstanceRef.current
+          strokeWeight: 1
         };
         
-        if (version === 'modern' && window.MapmyIndia.map && window.MapmyIndia.map.Polygon) {
-          new window.MapmyIndia.map.Polygon(polygonOptions);
+        const polygon = createPolygon(polygonOptions, mapInstanceRef.current);
+        if (polygon) {
           polygonsCreated++;
-        } else if (version === 'legacy' && window.MapmyIndia.Polygon) {
-          new window.MapmyIndia.Polygon(polygonOptions);
-          polygonsCreated++;
+          
+          // Create a marker for selection capability
+          createStateMarker(state);
         }
       } catch (polygonError) {
         console.error('Error creating heatmap polygon:', polygonError);
       }
     });
     
-    console.log(`Created ${polygonsCreated} polygons with API version: ${version}`);
+    console.log(`Created ${polygonsCreated} polygons with API version: ${apiVersion || 'unknown'}`);
     
     if (polygonsCreated === 0) {
-      renderBubbleView(stateData, version);
+      renderBubbleView(stateData);
     }
   };
 
   const handleResetMap = () => {
     setIsLoading(true);
+    setMapInitialized(false);
     initializeMap();
   };
 
@@ -398,7 +366,7 @@ const MapController: React.FC<MapControllerProps> = ({
       
       <div className="absolute top-4 left-4 bg-white/80 dark:bg-black/80 backdrop-blur-sm rounded p-2 z-10">
         <p className="text-xs font-mono">MapMyIndia Interactive Map</p>
-        <p className="text-xs font-mono opacity-50">API: {apiVersion}</p>
+        <p className="text-xs font-mono opacity-50">API: {apiVersion || 'detecting...'}</p>
       </div>
       
       <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
