@@ -5,7 +5,7 @@ declare global {
     MapmyIndia: {
       Map: new (element: HTMLElement, options: any) => any;
       Marker: new (options: any) => any;
-      Polygon: new (options: any) => any;
+      Polygon?: new (options: any) => any; // Make Polygon optional since it might not be available
     };
   }
 }
