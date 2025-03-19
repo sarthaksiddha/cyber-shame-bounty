@@ -11,6 +11,10 @@ declare global {
       // For legacy API support
       Marker?: new (options: any) => any;
       Polygon?: new (options: any) => any;
+      L?: {
+        marker?: (position: any, options?: any) => any;
+        polygon?: (paths: any, options?: any) => any;
+      };
     };
   }
 }

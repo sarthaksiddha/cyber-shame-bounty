@@ -6,6 +6,7 @@ import { CrimeData } from '@/types/mapTypes';
 import { generateCirclePoints, formatNumber } from '@/utils/mapUtils';
 import { detectApiVersion, createMarker, createPolygon, isPolygonSupported } from '@/utils/mapApiUtils';
 import { toast } from '../ui/use-toast';
+import { Alert, AlertTitle, AlertDescription } from "../ui/alert";
 
 interface MapControllerProps {
   selectedState: CrimeData | null;
@@ -24,11 +25,13 @@ const MapController: React.FC<MapControllerProps> = ({
   const [mapError, setMapError] = useState<string | null>(null);
   const [mapVisible, setMapVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [apiVersion, setApiVersion] = useState<'legacy' | 'modern' | null>(null);
+  const [apiVersion, setApiVersion] = useState<'legacy' | 'modern' | 'leaflet' | null>(null);
+  const [markersCreated, setMarkersCreated] = useState(0);
 
   // Function to initialize the map
   const initializeMap = () => {
     setIsLoading(true);
+    setMarkersCreated(0);
     
     if (!window.MapmyIndia) {
       console.error('MapMyIndia API not loaded');
@@ -186,7 +189,18 @@ const MapController: React.FC<MapControllerProps> = ({
           });
         } catch (e) {
           console.warn('Could not add marker click listener:', e);
+          // Try alternative method for Leaflet
+          if (marker.on) {
+            marker.on('click', () => {
+              setSelectedState(state);
+            });
+          }
         }
+      } else if (marker && marker.on) {
+        // Leaflet API
+        marker.on('click', () => {
+          setSelectedState(state);
+        });
       }
       
       return marker;
@@ -204,13 +218,19 @@ const MapController: React.FC<MapControllerProps> = ({
       }
 
       try {
-        // Clean up existing markers and polygons
+        // Clean up existing markers and polygons - API specific
         if (typeof mapInstanceRef.current.removeAllMarkers === 'function') {
           mapInstanceRef.current.removeAllMarkers();
         }
         
         if (typeof mapInstanceRef.current.removeAllPolygons === 'function') {
           mapInstanceRef.current.removeAllPolygons();
+        }
+        
+        // For Leaflet, we would need to handle this differently
+        if (apiVersion === 'leaflet') {
+          // Leaflet typically clears by removing from map
+          // We don't have previous references so we'll rely on redrawing
         }
         
         if (mapView === 'bubble') {
@@ -230,18 +250,19 @@ const MapController: React.FC<MapControllerProps> = ({
 
   // Render bubble view (circles for each state)
   const renderBubbleView = (stateData: CrimeData[]) => {
-    let markersCreated = 0;
+    let markerCount = 0;
     
     stateData.forEach((state) => {
       if (!state.coordinates) return;
       
       const marker = createStateMarker(state);
-      if (marker) markersCreated++;
+      if (marker) markerCount++;
     });
     
-    console.log(`Created ${markersCreated} markers with API version: ${apiVersion || 'unknown'}`);
+    console.log(`Created ${markerCount} markers with API version: ${apiVersion || 'unknown'}`);
+    setMarkersCreated(markerCount);
     
-    if (markersCreated === 0) {
+    if (markerCount === 0) {
       toast({
         title: "Warning",
         description: "Failed to display map markers. API might be incompatible.",
@@ -266,6 +287,7 @@ const MapController: React.FC<MapControllerProps> = ({
     }
 
     let polygonsCreated = 0;
+    let markersCreated = 0;
     
     stateData.forEach((state) => {
       if (!state.coordinates || !mapInstanceRef.current) return;
@@ -290,14 +312,16 @@ const MapController: React.FC<MapControllerProps> = ({
           polygonsCreated++;
           
           // Create a marker for selection capability
-          createStateMarker(state);
+          const marker = createStateMarker(state);
+          if (marker) markersCreated++;
         }
       } catch (polygonError) {
         console.error('Error creating heatmap polygon:', polygonError);
       }
     });
     
-    console.log(`Created ${polygonsCreated} polygons with API version: ${apiVersion || 'unknown'}`);
+    console.log(`Created ${polygonsCreated} polygons and ${markersCreated} markers with API version: ${apiVersion || 'unknown'}`);
+    setMarkersCreated(markersCreated);
     
     if (polygonsCreated === 0) {
       renderBubbleView(stateData);
@@ -335,6 +359,26 @@ const MapController: React.FC<MapControllerProps> = ({
             <p className="text-red-600 dark:text-red-400 mb-4">{mapError}</p>
             <Button onClick={handleResetMap}>Reload Map</Button>
           </div>
+        </div>
+      )}
+      
+      {!isLoading && mapInitialized && markersCreated === 0 && (
+        <div className="absolute top-16 left-4 right-4 z-10">
+          <Alert variant="destructive" className="bg-white/90 dark:bg-gray-900/90 border-red-400">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Map API Compatibility Issue</AlertTitle>
+            <AlertDescription>
+              Failed to display map markers. The API might be incompatible with this browser.
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-2"
+                onClick={handleResetMap}
+              >
+                Try Again
+              </Button>
+            </AlertDescription>
+          </Alert>
         </div>
       )}
       

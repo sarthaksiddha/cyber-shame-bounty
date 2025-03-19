@@ -3,8 +3,8 @@
  * Utility functions for working with the MapMyIndia API
  */
 
-// Detects whether we're using the modern or legacy API version
-export const detectApiVersion = (): 'modern' | 'legacy' | null => {
+// Detects which API version we're using
+export const detectApiVersion = (): 'modern' | 'legacy' | 'leaflet' | null => {
   if (!window.MapmyIndia) {
     console.error('MapMyIndia API not loaded');
     return null;
@@ -15,14 +15,19 @@ export const detectApiVersion = (): 'modern' | 'legacy' | null => {
     console.log('Using modern MapmyIndia API');
     return 'modern';
   } 
+  // Check for leaflet-based API
+  else if (window.MapmyIndia.L && window.MapmyIndia.L.marker) {
+    console.log('Using Leaflet-based MapmyIndia API');
+    return 'leaflet';
+  }
   // Check for legacy API (MapmyIndia.Marker structure)
   else if (typeof window.MapmyIndia.Marker === 'function') {
     console.log('Using legacy MapmyIndia API');
     return 'legacy';
   } 
-  // Fallback for when the API is loaded but structure is unexpected
+  // Fallback when structure is unexpected
   else {
-    console.warn('MapmyIndia API loaded but with unknown structure');
+    console.warn('MapmyIndia API loaded with unknown structure - trying Leaflet fallback');
     // Force legacy mode as a fallback
     return 'legacy';
   }
@@ -39,15 +44,36 @@ export const createMarker = (
   let marker = null;
   
   try {
-    // Set the map instance in the options
-    options.map = map;
-    
     // Create marker based on API version
     if (apiVersion === 'modern' && window.MapmyIndia.map?.Marker) {
+      options.map = map;
       marker = new window.MapmyIndia.map.Marker(options);
-    } else if (apiVersion === 'legacy' && window.MapmyIndia.Marker) {
+      console.log('Created marker with modern API');
+    } 
+    else if (apiVersion === 'leaflet' && window.MapmyIndia.L?.marker) {
+      // Leaflet API has different structure
+      const position = options.position;
+      marker = window.MapmyIndia.L.marker(position, {
+        icon: options.icon,
+        draggable: options.draggable
+      });
+      
+      if (marker) {
+        marker.addTo(map);
+        
+        // Add popup if specified
+        if (options.popupOptions && options.popupOptions.content) {
+          marker.bindPopup(options.popupOptions.content);
+        }
+        console.log('Created marker with Leaflet API');
+      }
+    }
+    else if (apiVersion === 'legacy' && window.MapmyIndia.Marker) {
+      options.map = map;
       marker = new window.MapmyIndia.Marker(options);
-    } else {
+      console.log('Created marker with legacy API');
+    } 
+    else {
       console.warn('Could not create marker: API constructor not found');
     }
   } catch (error) {
@@ -68,15 +94,32 @@ export const createPolygon = (
   let polygon = null;
   
   try {
-    // Set the map instance in the options
-    options.map = map;
-    
     // Create polygon based on API version
     if (apiVersion === 'modern' && window.MapmyIndia.map?.Polygon) {
+      options.map = map;
       polygon = new window.MapmyIndia.map.Polygon(options);
-    } else if (apiVersion === 'legacy' && window.MapmyIndia.Polygon) {
+      console.log('Created polygon with modern API');
+    } 
+    else if (apiVersion === 'leaflet' && window.MapmyIndia.L?.polygon) {
+      polygon = window.MapmyIndia.L.polygon(options.paths[0], {
+        fillColor: options.fillColor,
+        fillOpacity: options.fillOpacity,
+        color: options.strokeColor,
+        opacity: options.strokeOpacity,
+        weight: options.strokeWeight
+      });
+      
+      if (polygon) {
+        polygon.addTo(map);
+        console.log('Created polygon with Leaflet API');
+      }
+    }
+    else if (apiVersion === 'legacy' && window.MapmyIndia.Polygon) {
+      options.map = map;
       polygon = new window.MapmyIndia.Polygon(options);
-    } else {
+      console.log('Created polygon with legacy API');
+    } 
+    else {
       console.warn('Could not create polygon: API constructor not found');
     }
   } catch (error) {
@@ -92,6 +135,7 @@ export const isPolygonSupported = (): boolean => {
   
   return (
     (apiVersion === 'modern' && !!window.MapmyIndia.map?.Polygon) ||
-    (apiVersion === 'legacy' && !!window.MapmyIndia.Polygon)
+    (apiVersion === 'legacy' && !!window.MapmyIndia.Polygon) ||
+    (apiVersion === 'leaflet' && !!window.MapmyIndia.L?.polygon)
   );
 };
