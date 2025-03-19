@@ -127,9 +127,9 @@ const MapController: React.FC<MapControllerProps> = ({
 
       // Create marker based on API version
       let marker = null;
-      if (version === 'modern' && window.MapmyIndia.map) {
+      if (version === 'modern' && window.MapmyIndia.map && window.MapmyIndia.map.Marker) {
         marker = new window.MapmyIndia.map.Marker(markerOptions);
-      } else if (version === 'legacy') {
+      } else if (version === 'legacy' && window.MapmyIndia.Marker) {
         marker = new window.MapmyIndia.Marker(markerOptions);
       }
       
@@ -416,4 +416,3 @@ const MapController: React.FC<MapControllerProps> = ({
 };
 
 export default MapController;
-
