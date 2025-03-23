@@ -226,7 +226,7 @@ export const isPolygonSupported = (): boolean => {
 
 // Initialize map based on detected API version
 export const initializeMapInstance = (
-  container: HTMLElement,
+  container: HTMLElement | string,
   options: any = {}
 ): any => {
   if (!window.MapmyIndia) {
@@ -247,14 +247,24 @@ export const initializeMapInstance = (
   console.log(`Initializing map with API version: ${apiVersion}`);
 
   try {
+    // Handle both HTMLElement and string (id) as container
+    const containerElement = typeof container === 'string' 
+      ? document.getElementById(container)
+      : container;
+    
+    if (!containerElement) {
+      console.error('Map container element not found');
+      return null;
+    }
+
     if (apiVersion === 'mappls' && window.MapmyIndia.mappls?.Map) {
-      mapInstance = new window.MapmyIndia.mappls.Map(container, mergedOptions);
+      mapInstance = new window.MapmyIndia.mappls.Map(containerElement, mergedOptions);
       console.log('Created map with Mappls API');
     } 
     else if (apiVersion === 'maplibre') {
       const maplibre = window.MapmyIndia.maplibregl || window.maplibregl;
       mapInstance = new maplibre.Map({
-        container: container,
+        container: containerElement,
         style: 'https://apis.mappls.com/advancedmaps/api/key/map_styles',
         center: mergedOptions.center,
         zoom: mergedOptions.zoom
@@ -262,33 +272,43 @@ export const initializeMapInstance = (
       console.log('Created map with MapLibre API');
     }
     else if (apiVersion === 'modern') {
-      mapInstance = new window.MapmyIndia.Map(container, mergedOptions);
+      mapInstance = new window.MapmyIndia.Map(containerElement, mergedOptions);
       console.log('Created map with modern API');
     }
     else if (apiVersion === 'leaflet' && window.MapmyIndia.L) {
       if (window.MapmyIndia.L.map) {
-        mapInstance = new window.MapmyIndia.L.map(container, mergedOptions);
+        // For Leaflet API, we need to ensure we have the proper constructor signature
+        const containerId = containerElement.id || `map-container-${Date.now()}`;
+        
+        // Set ID if not already set
+        if (!containerElement.id) {
+          containerElement.id = containerId;
+        }
+        
+        // Create a new Leaflet map instance using the proper constructor
+        mapInstance = new window.MapmyIndia.L.map(containerId, mergedOptions);
+        console.log('Created map with Leaflet API');
       } else {
-        // DOM ID-based initialization for some Leaflet versions
-        const containerId = container.id || 'map-container';
-        container.id = containerId;
+        // Legacy Leaflet implementation
+        const containerId = containerElement.id || `map-container-${Date.now()}`;
+        containerElement.id = containerId;
         
         // Some versions of Leaflet API initialize directly on the MapmyIndia object
         if (typeof window.MapmyIndia.Map === 'function') {
           mapInstance = new window.MapmyIndia.Map(containerId, mergedOptions);
+          console.log('Created map with legacy Leaflet API');
         }
       }
-      console.log('Created map with Leaflet API');
     }
     else if (apiVersion === 'legacy') {
-      mapInstance = new window.MapmyIndia.Map(container, mergedOptions);
+      mapInstance = new window.MapmyIndia.Map(containerElement, mergedOptions);
       console.log('Created map with legacy API');
     }
     
     if (!mapInstance) {
       console.warn('Could not create map with detected API, trying direct Map constructor');
       // Last resort - direct constructor
-      mapInstance = new window.MapmyIndia.Map(container, mergedOptions);
+      mapInstance = new window.MapmyIndia.Map(containerElement, mergedOptions);
     }
   } catch (error) {
     console.error('Error initializing map:', error);

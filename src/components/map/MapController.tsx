@@ -99,11 +99,15 @@ const MapController: React.FC<MapControllerProps> = ({
               
               try {
                 if (window.MapmyIndia.L) {
-                  // Try Leaflet method
-                  mapInstanceRef.current = window.MapmyIndia.L.map(mapRef.current.id, {
-                    center: [20.5937, 78.9629],
-                    zoom: 5
-                  });
+                  // Try Leaflet method - use proper constructor syntax with 'new'
+                  if (window.MapmyIndia.L.map) {
+                    mapInstanceRef.current = new window.MapmyIndia.L.map(mapRef.current.id, {
+                      center: [20.5937, 78.9629],
+                      zoom: 5
+                    });
+                  } else {
+                    throw new Error('L.map constructor not available');
+                  }
                   
                   setMapInitialized(true);
                   setMapError(null);

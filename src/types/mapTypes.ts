@@ -3,7 +3,7 @@
 declare global {
   interface Window {
     MapmyIndia: {
-      Map: new (element: HTMLElement, options: any) => any;
+      Map: new (element: HTMLElement | string, options: any) => any;
       // Marker, Polygon for both modern and legacy API
       map?: {
         Marker?: new (options: any) => any;
