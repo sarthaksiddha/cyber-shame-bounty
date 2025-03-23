@@ -36,9 +36,14 @@ export const detectApiVersion = (): 'modern' | 'legacy' | 'leaflet' | 'mappls' |
     return 'legacy';
   } 
   
-  // Try to handle unknown structure with fallback
-  console.log('MapmyIndia API structure not recognized, using best-effort detection');
-  if (window.L || (window.MapmyIndia && window.MapmyIndia.Map)) {
+  // Enhanced fallback mechanism with additional checks
+  console.log('MapmyIndia API structure not recognized, using enhanced detection');
+  
+  // Check for any Leaflet-like functionality
+  if (window.L || 
+      (window.MapmyIndia && typeof window.MapmyIndia.Map === 'function') ||
+      (window.MapmyIndia && window.MapmyIndia.map)) {
+    console.log('Found Leaflet-like structure, using Leaflet compatibility mode');
     return 'leaflet';
   }
   
