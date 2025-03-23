@@ -1,4 +1,3 @@
-
 /**
  * Utilities for creating and managing map markers
  */
@@ -20,6 +19,44 @@ export const createMarker = (
   
   try {
     console.log(`Creating marker with API version: ${apiVersion}`);
+    
+    // Add direct Leaflet fallback when everything else fails
+    if (window.L && (!apiVersion || apiVersion === 'leaflet')) {
+      // Convert coordinates if needed
+      let position = options.position;
+      
+      // Leaflet expects [lat, lng] instead of [lng, lat]
+      if (Array.isArray(position) && position.length === 2) {
+        position = [position[1], position[0]];
+      }
+      
+      // Create icon if needed
+      let icon = null;
+      if (options.icon && window.L.icon) {
+        icon = window.L.icon({
+          iconUrl: options.icon.url,
+          iconSize: [options.icon.size?.width || 25, options.icon.size?.height || 41],
+          iconAnchor: [options.icon.anchor?.x || 12, options.icon.anchor?.y || 41]
+        });
+      }
+      
+      // Create marker with proper options
+      marker = window.L.marker(position, {
+        icon: icon,
+        draggable: options.draggable
+      });
+      
+      if (marker) {
+        marker.addTo(map);
+        
+        // Add popup if specified
+        if (options.popupOptions && options.popupOptions.content) {
+          marker.bindPopup(options.popupOptions.content);
+        }
+        console.log('Created marker with fallback Leaflet API');
+        return marker;
+      }
+    }
     
     // Create marker based on API version
     if (apiVersion === 'mappls' && window.MapmyIndia.mappls?.Marker) {
@@ -134,7 +171,27 @@ export const createMarker = (
       }
     }
   } catch (error) {
-    console.error('Error creating marker:', error);
+    console.error('Error creating marker, trying standard Leaflet fallback:', error);
+    
+    // Final fallback - direct Leaflet
+    if (window.L) {
+      try {
+        const position = Array.isArray(options.position) ? 
+          [options.position[1], options.position[0]] : options.position;
+          
+        const marker = window.L.marker(position);
+        marker.addTo(map);
+        
+        if (options.popupOptions && options.popupOptions.content) {
+          marker.bindPopup(options.popupOptions.content);
+        }
+        
+        console.log('Created marker with emergency Leaflet fallback');
+        return marker;
+      } catch (e) {
+        console.error('Final fallback also failed:', e);
+      }
+    }
   }
   
   return marker;
