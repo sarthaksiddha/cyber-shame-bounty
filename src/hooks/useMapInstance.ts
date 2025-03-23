@@ -1,6 +1,6 @@
 
 import { useEffect, useRef, useState } from 'react';
-import { detectApiVersion, initializeMapInstance } from '@/utils/mapApiUtils';
+import { detectApiVersion, initializeMapInstance } from '@/utils/map';
 import { toast } from '@/components/ui/use-toast';
 
 export function useMapInstance() {

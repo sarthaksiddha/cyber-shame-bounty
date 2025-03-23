@@ -6,7 +6,7 @@ import {
   createPolygon, 
   isPolygonSupported,
   detectApiVersion
-} from '@/utils/mapApiUtils';
+} from '@/utils/map';
 import { generateCirclePoints } from '@/utils/mapUtils';
 import { toast } from '@/components/ui/use-toast';
 
