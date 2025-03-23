@@ -33,12 +33,50 @@ const MapController: React.FC<MapControllerProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [apiVersion, setApiVersion] = useState<'legacy' | 'modern' | 'leaflet' | 'mappls' | 'maplibre' | null>(null);
   const [markersCreated, setMarkersCreated] = useState(0);
+  const [markersRef, setMarkersRef] = useState<any[]>([]);
+  const [polygonsRef, setPolygonsRef] = useState<any[]>([]);
   const [retryCount, setRetryCount] = useState(0);
 
+  // Function to clean up existing markers and polygons
+  const cleanupMapObjects = () => {
+    // Clean up markers
+    if (markersRef.length > 0) {
+      markersRef.forEach(marker => {
+        try {
+          if (marker.remove) {
+            marker.remove();
+          } else if (mapInstanceRef.current && marker.setMap) {
+            marker.setMap(null);
+          }
+        } catch (e) {
+          console.warn('Error removing marker:', e);
+        }
+      });
+      setMarkersRef([]);
+    }
+
+    // Clean up polygons
+    if (polygonsRef.length > 0) {
+      polygonsRef.forEach(polygon => {
+        try {
+          if (polygon.remove) {
+            polygon.remove();
+          } else if (mapInstanceRef.current && polygon.setMap) {
+            polygon.setMap(null);
+          }
+        } catch (e) {
+          console.warn('Error removing polygon:', e);
+        }
+      });
+      setPolygonsRef([]);
+    }
+  };
+  
   // Function to initialize the map
   const initializeMap = () => {
     setIsLoading(true);
     setMarkersCreated(0);
+    cleanupMapObjects();
     
     if (!window.MapmyIndia) {
       console.error('MapMyIndia API not loaded');
@@ -65,7 +103,8 @@ const MapController: React.FC<MapControllerProps> = ({
       console.log('Initializing map with container:', mapRef.current);
       
       // Use our enhanced initializer
-      mapInstanceRef.current = initializeMapInstance(mapRef.current);
+      const mapInstance = initializeMapInstance(mapRef.current);
+      mapInstanceRef.current = mapInstance;
       
       if (mapInstanceRef.current) {
         console.log('Map created successfully');
@@ -76,6 +115,7 @@ const MapController: React.FC<MapControllerProps> = ({
         // Detect API version
         const version = detectApiVersion();
         setApiVersion(version);
+        console.log('API Version detected:', version);
         
         // Add a slight delay to ensure map is fully rendered before updating view
         setTimeout(() => {
@@ -99,15 +139,12 @@ const MapController: React.FC<MapControllerProps> = ({
               
               try {
                 if (window.MapmyIndia.L) {
-                  // Try Leaflet method - use proper constructor syntax with 'new'
-                  if (window.MapmyIndia.L.map) {
-                    mapInstanceRef.current = new window.MapmyIndia.L.map(mapRef.current.id, {
-                      center: [20.5937, 78.9629],
-                      zoom: 5
-                    });
-                  } else {
-                    throw new Error('L.map constructor not available');
-                  }
+                  // Try Leaflet method
+                  console.log('Trying Leaflet initialization');
+                  mapInstanceRef.current = new window.MapmyIndia.L.map(mapRef.current.id, {
+                    center: [20.5937, 78.9629],
+                    zoom: 5
+                  });
                   
                   setMapInitialized(true);
                   setMapError(null);
@@ -118,6 +155,7 @@ const MapController: React.FC<MapControllerProps> = ({
                   throw new Error('Fallback initialization also failed');
                 }
               } catch (retryError) {
+                console.error('Retry error:', retryError);
                 setMapError(`Failed to initialize map after multiple attempts. Please refresh the page.`);
                 setIsLoading(false);
               }
@@ -158,6 +196,7 @@ const MapController: React.FC<MapControllerProps> = ({
     
     return () => {
       window.removeEventListener('resize', loadMap);
+      cleanupMapObjects();
     };
   }, [mapRef.current, mapInitialized]);
 
@@ -214,13 +253,12 @@ const MapController: React.FC<MapControllerProps> = ({
       const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${radius * 2}px" height="${radius * 2}px"><circle cx="50" cy="50" r="40" fill="rgba(${Math.floor(255 * (1 - resolutionRate))}, ${Math.floor(255 * resolutionRate)}, 100, 0.7)" stroke="${isSelected ? 'white' : 'none'}" stroke-width="${isSelected ? '4' : '0'}"/></svg>`;
       const svgUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svgContent)}`;
       
-      const apiVersion = detectApiVersion();
-      if (apiVersion === 'leaflet') {
+      const detected = detectApiVersion();
+      if (detected === 'leaflet') {
         // Special handling for Leaflet API
-        let marker;
         if (window.MapmyIndia.L?.marker && mapInstanceRef.current) {
           // Convert [lng, lat] to [lat, lng] for Leaflet
-          const position = [state.coordinates[1], state.coordinates[0]];
+          const position: [number, number] = [state.coordinates[1], state.coordinates[0]];
           
           // Create a custom icon with our SVG
           let icon = null;
@@ -232,7 +270,7 @@ const MapController: React.FC<MapControllerProps> = ({
             });
           }
           
-          marker = window.MapmyIndia.L.marker(position, { icon });
+          const marker = window.MapmyIndia.L.marker(position, { icon });
           marker.addTo(mapInstanceRef.current);
           
           // Add popup for state info
@@ -244,6 +282,7 @@ const MapController: React.FC<MapControllerProps> = ({
             setSelectedState(state);
           });
           
+          setMarkersRef(prev => [...prev, marker]);
           return marker;
         }
       } else {
@@ -286,10 +325,12 @@ const MapController: React.FC<MapControllerProps> = ({
           } catch (e) {
             console.warn('Could not add marker click listener:', e);
           }
+          
+          setMarkersRef(prev => [...prev, marker]);
+          return marker;
         }
-        
-        return marker;
       }
+      return null;
     } catch (error) {
       console.error('Error creating state marker:', error);
       return null;
@@ -304,9 +345,8 @@ const MapController: React.FC<MapControllerProps> = ({
       }
 
       try {
-        // Clean up existing markers and polygons 
-        // Different APIs have different cleanup methods
-        // We'll let the map reinitialize for simplicity
+        // Clean up existing markers and polygons
+        cleanupMapObjects();
         
         if (mapView === 'bubble') {
           renderBubbleView(stateData);
@@ -382,6 +422,7 @@ const MapController: React.FC<MapControllerProps> = ({
         const polygon = createPolygon(polygonOptions, mapInstanceRef.current);
         if (polygon) {
           polygonsCreated++;
+          setPolygonsRef(prev => [...prev, polygon]);
           
           // Create a marker for selection capability
           const marker = createStateMarker(state);

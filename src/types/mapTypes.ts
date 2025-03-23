@@ -14,12 +14,13 @@ declare global {
       Polygon?: new (options: any) => any;
       // For Leaflet API support
       L?: {
-        marker?: (position: any, options?: any) => any;
-        polygon?: (paths: any, options?: any) => any;
+        marker?: (position: [number, number] | {lat: number, lng: number}, options?: any) => any;
+        polygon?: (paths: any[], options?: any) => any;
         map?: new (element: string | HTMLElement, options: any) => any;
         layerGroup?: () => any;
         latLng?: (lat: number, lng: number) => any;
         icon?: (options: any) => any;
+        divIcon?: (options: any) => any;
       };
       // For React SDK
       maplibregl?: any;
