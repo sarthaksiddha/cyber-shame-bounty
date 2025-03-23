@@ -18,6 +18,8 @@ declare global {
         polygon?: (paths: any, options?: any) => any;
         map?: new (element: string | HTMLElement, options: any) => any;
         layerGroup?: () => any;
+        latLng?: (lat: number, lng: number) => any;
+        icon?: (options: any) => any;
       };
       // For React SDK
       maplibregl?: any;

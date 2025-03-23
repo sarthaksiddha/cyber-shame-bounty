@@ -210,47 +210,86 @@ const MapController: React.FC<MapControllerProps> = ({
       const radius = Math.sqrt(state.incidents) / 20;
       const isSelected = selectedState?.state === state.state;
       
-      const markerOptions = {
-        position: state.coordinates,
-        icon: {
-          url: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${radius * 2}px" height="${radius * 2}px"><circle cx="50" cy="50" r="40" fill="rgba(${Math.floor(255 * (1 - resolutionRate))}, ${Math.floor(255 * resolutionRate)}, 100, 0.7)" stroke="${isSelected ? 'white' : 'none'}" stroke-width="${isSelected ? '4' : '0'}"/></svg>`,
-          size: { width: radius * 2, height: radius * 2 },
-          anchor: { x: radius, y: radius }
-        },
-        popupOptions: {
-          content: `<b>${state.state}</b><br>Incidents: ${state.incidents}<br>Resolved: ${state.resolved}`
+      // Create an SVG for the marker based on state data
+      const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${radius * 2}px" height="${radius * 2}px"><circle cx="50" cy="50" r="40" fill="rgba(${Math.floor(255 * (1 - resolutionRate))}, ${Math.floor(255 * resolutionRate)}, 100, 0.7)" stroke="${isSelected ? 'white' : 'none'}" stroke-width="${isSelected ? '4' : '0'}"/></svg>`;
+      const svgUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svgContent)}`;
+      
+      const apiVersion = detectApiVersion();
+      if (apiVersion === 'leaflet') {
+        // Special handling for Leaflet API
+        let marker;
+        if (window.MapmyIndia.L?.marker && mapInstanceRef.current) {
+          // Convert [lng, lat] to [lat, lng] for Leaflet
+          const position = [state.coordinates[1], state.coordinates[0]];
+          
+          // Create a custom icon with our SVG
+          let icon = null;
+          if (window.MapmyIndia.L.icon) {
+            icon = window.MapmyIndia.L.icon({
+              iconUrl: svgUrl,
+              iconSize: [radius * 2, radius * 2],
+              iconAnchor: [radius, radius]
+            });
+          }
+          
+          marker = window.MapmyIndia.L.marker(position, { icon });
+          marker.addTo(mapInstanceRef.current);
+          
+          // Add popup for state info
+          const popupContent = `<b>${state.state}</b><br>Incidents: ${state.incidents}<br>Resolved: ${state.resolved}`;
+          marker.bindPopup(popupContent);
+          
+          // Add click handler
+          marker.on('click', () => {
+            setSelectedState(state);
+          });
+          
+          return marker;
         }
-      };
+      } else {
+        // Standard marker creation for other API versions
+        const markerOptions = {
+          position: state.coordinates,
+          icon: {
+            url: svgUrl,
+            size: { width: radius * 2, height: radius * 2 },
+            anchor: { x: radius, y: radius }
+          },
+          popupOptions: {
+            content: `<b>${state.state}</b><br>Incidents: ${state.incidents}<br>Resolved: ${state.resolved}`
+          }
+        };
 
-      const marker = createMarker(markerOptions, mapInstanceRef.current);
-      
-      // Try to add click listener - different methods for different API versions
-      if (marker) {
-        try {
-          // Method 1: Modern API with addListener
-          if (typeof marker.addListener === 'function') {
-            marker.addListener('click', () => {
-              setSelectedState(state);
-            });
-          } 
-          // Method 2: Leaflet API with on
-          else if (marker.on) {
-            marker.on('click', () => {
-              setSelectedState(state);
-            });
+        const marker = createMarker(markerOptions, mapInstanceRef.current);
+        
+        // Try to add click listener - different methods for different API versions
+        if (marker) {
+          try {
+            // Method 1: Modern API with addListener
+            if (typeof marker.addListener === 'function') {
+              marker.addListener('click', () => {
+                setSelectedState(state);
+              });
+            } 
+            // Method 2: Leaflet API with on
+            else if (marker.on) {
+              marker.on('click', () => {
+                setSelectedState(state);
+              });
+            }
+            // Method 3: Try setting onclick directly
+            else if (marker.element) {
+              marker.element.onclick = () => {
+                setSelectedState(state);
+              };
+            }
+          } catch (e) {
+            console.warn('Could not add marker click listener:', e);
           }
-          // Method 3: Try setting onclick directly
-          else if (marker.element) {
-            marker.element.onclick = () => {
-              setSelectedState(state);
-            };
-          }
-        } catch (e) {
-          console.warn('Could not add marker click listener:', e);
         }
+        
+        return marker;
       }
-      
-      return marker;
     } catch (error) {
       console.error('Error creating state marker:', error);
       return null;

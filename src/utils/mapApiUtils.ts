@@ -75,12 +75,30 @@ export const createMarker = (
       console.log('Created marker with modern API');
     } 
     else if (apiVersion === 'leaflet' && window.MapmyIndia.L) {
-      // Try to create Leaflet marker
+      // Leaflet API requires different marker creation
       if (window.MapmyIndia.L.marker) {
-        // Leaflet API has different structure
-        const position = options.position;
+        // Transform coordinates if needed
+        let position = options.position;
+        
+        // Leaflet often expects [lat, lng] instead of [lng, lat]
+        if (Array.isArray(position) && position.length === 2) {
+          // Swap if needed
+          position = [position[1], position[0]];
+        }
+        
+        // Create icon if needed
+        let icon = null;
+        if (options.icon && window.MapmyIndia.L.icon) {
+          icon = window.MapmyIndia.L.icon({
+            iconUrl: options.icon.url,
+            iconSize: [options.icon.size?.width || 25, options.icon.size?.height || 41],
+            iconAnchor: [options.icon.anchor?.x || 12, options.icon.anchor?.y || 41]
+          });
+        }
+        
+        // Create marker with proper options
         marker = window.MapmyIndia.L.marker(position, {
-          icon: options.icon,
+          icon: icon,
           draggable: options.draggable
         });
         
@@ -94,7 +112,6 @@ export const createMarker = (
           console.log('Created marker with Leaflet API');
         }
       } else if (window.MapmyIndia.L.layerGroup) {
-        // Alternative method with layer groups
         console.log('Attempting to create marker with Leaflet layerGroup');
         return map; // Just return the map as we can't create markers in this version
       }
@@ -174,7 +191,10 @@ export const createPolygon = (
     } 
     else if (apiVersion === 'leaflet' && window.MapmyIndia.L) {
       if (window.MapmyIndia.L.polygon) {
-        polygon = window.MapmyIndia.L.polygon(options.paths[0], {
+        // For Leaflet, paths might need to be reversed [lat, lng] instead of [lng, lat]
+        const reversedPaths = options.paths[0].map((point: [number, number]) => [point[1], point[0]]);
+        
+        polygon = window.MapmyIndia.L.polygon(reversedPaths, {
           fillColor: options.fillColor,
           fillOpacity: options.fillOpacity,
           color: options.strokeColor,
@@ -285,7 +305,7 @@ export const initializeMapInstance = (
           containerElement.id = containerId;
         }
         
-        // Create a new Leaflet map instance using the proper constructor
+        // Create a new Leaflet map instance using the proper constructor with 'new'
         mapInstance = new window.MapmyIndia.L.map(containerId, mergedOptions);
         console.log('Created map with Leaflet API');
       } else {
