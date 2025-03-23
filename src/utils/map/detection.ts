@@ -5,7 +5,7 @@
 
 // Detects which API version we're using
 export const detectApiVersion = (): 'modern' | 'legacy' | 'leaflet' | 'mappls' | 'maplibre' | null => {
-  if (!window.MapmyIndia) {
+  if (typeof window === 'undefined' || !window.MapmyIndia) {
     console.error('MapMyIndia API not loaded');
     return null;
   }
@@ -25,7 +25,7 @@ export const detectApiVersion = (): 'modern' | 'legacy' | 'leaflet' | 'mappls' |
     console.log('Using modern MapmyIndia API');
     return 'modern';
   } 
-  // Check for leaflet-based API
+  // Check for leaflet-based API - most common
   else if (window.MapmyIndia.L) {
     console.log('Using Leaflet-based MapmyIndia API');
     return 'leaflet';
@@ -35,9 +35,13 @@ export const detectApiVersion = (): 'modern' | 'legacy' | 'leaflet' | 'mappls' |
     console.log('Using legacy MapmyIndia API');
     return 'legacy';
   } 
-  // Fallback when structure is unexpected
-  else {
-    console.warn('MapmyIndia API loaded with unknown structure - trying Leaflet fallback');
-    return 'leaflet'; // Default to leaflet which is more common
+  
+  // Try to handle unknown structure with fallback
+  console.log('MapmyIndia API structure not recognized, using best-effort detection');
+  if (window.L || (window.MapmyIndia && window.MapmyIndia.Map)) {
+    return 'leaflet';
   }
+  
+  console.warn('MapmyIndia API loaded with unknown structure - using leaflet as fallback');
+  return 'leaflet';
 };

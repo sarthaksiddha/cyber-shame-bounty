@@ -21,6 +21,7 @@ declare global {
         latLng?: (lat: number, lng: number) => any;
         icon?: (options: any) => any;
         divIcon?: (options: any) => any;
+        tileLayer?: (url: string, options?: any) => any;
       };
       // For React SDK
       maplibregl?: any;
@@ -33,6 +34,15 @@ declare global {
     };
     // Maplibre GL JS might be loaded separately
     maplibregl?: any;
+    // Standard Leaflet might be loaded instead of MapmyIndia.L
+    L?: {
+      map: new (element: string | HTMLElement, options: any) => any;
+      marker: (position: [number, number] | {lat: number, lng: number}, options?: any) => any;
+      tileLayer: (url: string, options?: any) => any;
+      polygon: (paths: any[], options?: any) => any;
+      icon: (options: any) => any;
+      divIcon: (options: any) => any;
+    };
   }
 }
 

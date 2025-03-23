@@ -51,9 +51,10 @@ const MapController: React.FC<MapControllerProps> = ({
     <div className="lg:col-span-3 futuristic-card !p-0 relative h-[500px]">
       <div 
         ref={mapRef} 
-        className="absolute inset-0 w-full h-full rounded-lg overflow-hidden" 
+        className="absolute inset-0 w-full h-full rounded-lg overflow-hidden z-10" 
         id="map-container"
-        style={{ background: '#f1f5f9' }}
+        style={{ background: '#f8f9fa' }}
+        data-testid="map-element"
       />
       
       {/* Loading and error states */}
