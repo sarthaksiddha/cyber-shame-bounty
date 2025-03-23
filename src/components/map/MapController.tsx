@@ -43,6 +43,42 @@ const MapController: React.FC<MapControllerProps> = ({
     mapView
   );
 
+const attemptMapRecovery = useCallback(() => {
+  console.log('Attempting map recovery...');
+  setIsLoading(true);
+  
+  // Try to load standard Leaflet dynamically
+  const loadLeaflet = async () => {
+    if (!window.L) {
+      try {
+        const L = await import('leaflet');
+        // Attach to window for global access
+        window.L = L;
+        console.log('Dynamically loaded Leaflet for recovery');
+        handleResetMap();
+      } catch (error) {
+        console.error('Failed to load Leaflet:', error);
+        setMapError('Could not load map libraries. Please refresh the page.');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      handleResetMap();
+    }
+  };
+  
+  loadLeaflet();
+}, [handleResetMap, setIsLoading]);
+
+// Add this to your MapLoadingState component props
+<MapLoadingState 
+  isLoading={isLoading}
+  mapError={mapError}
+  markersCreated={markersCreated}
+  mapInitialized={mapInitialized}
+  handleResetMap={handleResetMap}
+  attemptMapRecovery={attemptMapRecovery}
+/>
   // Get the effective API version to display (from either hook)
   const effectiveApiVersion = apiVersion || markersApiVersion;
   
