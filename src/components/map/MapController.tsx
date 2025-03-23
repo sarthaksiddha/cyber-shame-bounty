@@ -6,6 +6,17 @@ import MapLoadingState from './MapLoadingState';
 import SelectedStateInfo from './SelectedStateInfo';
 import MapHeader from './MapHeader';
 
+useEffect(() => {
+  // Conditionally load Leaflet if not available
+  if (!window.L && !window.MapmyIndia) {
+    import('leaflet').then(() => {
+      console.log('Leaflet loaded dynamically');
+      // Force re-initialization
+      handleResetMap();
+    });
+  }
+}, []);
+
 interface MapControllerProps {
   selectedState: CrimeData | null;
   setSelectedState: (state: CrimeData) => void;
