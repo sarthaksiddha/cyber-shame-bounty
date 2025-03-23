@@ -16,3 +16,24 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+
+
+<!-- Fallback to standard Leaflet if MapmyIndia fails -->
+<script>
+  // Check if MapmyIndia failed to load after 5 seconds
+  setTimeout(function() {
+    if (!window.MapmyIndia || !window.MapmyIndia.L) {
+      console.log('MapmyIndia API not loaded properly, loading Leaflet as fallback');
+      
+      // Load standard Leaflet as fallback
+      const leafletCSS = document.createElement('link');
+      leafletCSS.rel = 'stylesheet';
+      leafletCSS.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(leafletCSS);
+      
+      const leafletScript = document.createElement('script');
+      leafletScript.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      document.head.appendChild(leafletScript);
+    }
+  }, 5000);
+</script>
