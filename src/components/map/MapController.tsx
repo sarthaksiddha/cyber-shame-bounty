@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useEffect } from 'react';
 import { CrimeData } from '@/types/mapTypes';
 import { useMapInstance } from '@/hooks/useMapInstance';
 import { useMapMarkers } from '@/hooks/useMapMarkers';
@@ -46,6 +45,18 @@ const MapController: React.FC<MapControllerProps> = ({
 
   // Get the effective API version to display (from either hook)
   const effectiveApiVersion = apiVersion || markersApiVersion;
+  
+  // Update the map whenever initialization status changes
+  useEffect(() => {
+    if (mapInitialized && mapInstanceRef.current) {
+      // Add a short delay to ensure map is fully initialized
+      const timer = setTimeout(() => {
+        updateMapView();
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [mapInitialized, mapView]);
 
   return (
     <div className="lg:col-span-3 futuristic-card !p-0 relative h-[500px]">
