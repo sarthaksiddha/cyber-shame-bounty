@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Shield, Menu, X } from 'lucide-react';
+import { Shield, Menu, X, Github } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Header = () => {
@@ -25,8 +25,8 @@ const Header = () => {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out ${
         scrolled 
-          ? 'bg-white bg-opacity-80 backdrop-blur-md shadow-sm' 
-          : 'bg-transparent'
+        ? 'bg-white bg-opacity-80 dark:bg-gray-950/80 backdrop-blur-md shadow-sm' 
+        : 'bg-transparent'
       }`}
     >
       <div className="container mx-auto px-6 py-4">
@@ -65,6 +65,14 @@ const Header = () => {
             >
               Activity Map
             </a>
+            <a
+              href="https://github.com/your-repo/cybershield-india"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-all duration-200 hover:text-primary"
+            >
+              <Github className="h-5 w-5" />
+            </a>
           </nav>
 
           {/* Mobile Menu Button */}
@@ -82,8 +90,8 @@ const Header = () => {
       </div>
 
       {/* Mobile Navigation */}
-      <div 
-        className={`fixed inset-0 bg-white bg-opacity-95 backdrop-blur-sm z-40 flex flex-col items-center justify-center space-y-8 transition-all duration-300 ease-in-out ${
+       <div 
+        className={`fixed inset-0 bg-white dark:bg-gray-950 bg-opacity-95 dark:bg-opacity-95 backdrop-blur-sm z-40 flex flex-col items-center justify-center space-y-8 transition-all duration-300 ease-in-out ${
           isMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         } md:hidden`}
       >
