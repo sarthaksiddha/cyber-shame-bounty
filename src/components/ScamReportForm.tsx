@@ -13,11 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 const formSchema = z.object({
   scammerName: z.string().min(2, 'Name must be at least 2 characters'),
   scammerPhone: z.string().optional(),
-  scammerEmail: z.string().email('Invalid email address').optional(),
-  website: z.string().url('Invalid URL').optional(),
+  scammerEmail: z.union([z.string().email('Invalid email address'), z.literal('')]).optional(),
+  website: z.union([z.string().url('Invalid URL'), z.literal('')]).optional(),
   scamType: z.string().min(1, 'Please select a scam type'),
   description: z.string().min(10, 'Please provide more details'),
-  evidenceLink: z.string().url('Invalid URL').optional(),
+  evidenceLink: z.union([z.string().url('Invalid URL'), z.literal('')]).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
