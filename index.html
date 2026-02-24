@@ -12,34 +12,16 @@
     <meta property="og:description" content="India's community-driven platform to report cyber crimes, expose scammers, and earn bounty rewards." />
     <meta property="og:image" content="/og-image.png" />
     <meta name="theme-color" content="#f97316" />
-    <!-- MapMyIndia Maps API JavaScript -->
-    <script src="https://apis.mapmyindia.com/advancedmaps/v1/aa3931638b8cd72c0f7a4f441b1639ff/map_load?v=1.5"></script>
-    <!-- Lovable Script for Select feature -->
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    <!--
+      MapMyIndia Maps API (optional — only needed if you have a valid API key).
+      If you don't have a MapMyIndia key, the app automatically falls back to
+      Leaflet (bundled via npm). You can safely remove this line for localhost /
+      self-hosted deployments without a MapMyIndia subscription.
+    -->
+    <!-- <script src="https://apis.mapmyindia.com/advancedmaps/v1/YOUR_API_KEY_HERE/map_load?v=1.5"></script> -->
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
-
-<!-- Fallback to standard Leaflet if MapmyIndia fails -->
-<script>
-  // Check if MapmyIndia failed to load after 5 seconds
-  setTimeout(function() {
-    if (!window.MapmyIndia || !window.MapmyIndia.L) {
-      console.log('MapmyIndia API not loaded properly, loading Leaflet as fallback');
-      
-      // Load standard Leaflet as fallback
-      const leafletCSS = document.createElement('link');
-      leafletCSS.rel = 'stylesheet';
-      leafletCSS.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(leafletCSS);
-      
-      const leafletScript = document.createElement('script');
-      leafletScript.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-      document.head.appendChild(leafletScript);
-    }
-  }, 5000);
-</script>

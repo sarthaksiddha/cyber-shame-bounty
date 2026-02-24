@@ -1,0 +1,21 @@
+# Netlify deployment config
+# Deploy by dragging the dist/ folder to netlify.com/drop
+# OR connect your GitHub repo at netlify.com for auto-deploy on every push.
+
+[build]
+  command   = "npm run build"
+  publish   = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA routing — redirect all paths to index.html so React Router works
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
