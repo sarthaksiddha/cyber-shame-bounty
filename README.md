@@ -2,8 +2,6 @@
 
 <div align="center">
 
-![CyberShield India](https://raw.githubusercontent.com/sarthaksiddha/cyber-shame-bounty/main/public/og-image.png)
-
 **A community-driven digital bounty program dedicated to combating cyber crime and scams in India.**
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Deploy%20Your%20Own-blue?style=for-the-badge)](#getting-started)
