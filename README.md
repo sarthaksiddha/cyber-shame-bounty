@@ -2,11 +2,11 @@
 
 <div align="center">
 
-![CyberShield India](public/og-image.png)
+![CyberShield India](https://raw.githubusercontent.com/sarthaksiddha/cyber-shame-bounty/main/public/og-image.png)
 
 **A community-driven digital bounty program dedicated to combating cyber crime and scams in India.**
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-cybershield.in-blue?style=for-the-badge)](https://cyber-shame-bounty.lovable.app)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Deploy%20Your%20Own-blue?style=for-the-badge)](#getting-started)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge)](CONTRIBUTING.md)
 [![Made for India](https://img.shields.io/badge/Made%20for-India%20🇮🇳-orange?style=for-the-badge)]()
@@ -31,9 +31,13 @@ CyberShield India is an open-source civic tech platform that empowers Indian cit
 
 ## Screenshots
 
-| Hero | Hall of Shame | Crime Map |
-|------|--------------|-----------|
-| ![Hero](.github/assets/hero.png) | ![Hall of Shame](.github/assets/hall.png) | ![Crime Map](.github/assets/map.png) |
+> 📸 Screenshots will be added after the first public deployment. Run the project locally (`npm run dev`) to see it in action, or deploy to Netlify / Vercel using the configs in this repo.
+
+**Key screens:**
+- 🏠 **Hero** — cinematic dark background, animated crime counters, India flag stripe, 1930 helpline CTA
+- 🏴‍☠️ **Hall of Shame** — searchable/filterable scammer cards with severity badges and expandable details
+- 🗺️ **Crime Map** — state-wise heatmap with Leaflet (offline) or MapMyIndia (with API key)
+- 🎯 **Bounty Program** — tiered rewards from ₹500 to ₹15,000+ for verified reports
 
 ---
 
@@ -96,7 +100,7 @@ npm run dev
 bun dev
 ```
 
-Open [http://localhost:8080](http://localhost:8080) in your browser.
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ### Build for Production
 
